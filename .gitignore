@@ -1,0 +1,31 @@
+# Dependencias de Node.js
+node_modules/
+package-lock.json
+
+# Archivos de logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos de build
+dist/
+build/
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de conocimiento exportados (opcional, descomentar si no quieres versionarlos)
+# chess_knowledge_*.json

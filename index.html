@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajedrez con Q-Learning</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♟️ Ajedrez con Q-Learning</h1>
+            <p>Entrenamiento automático de IA - Blancas vs Negras</p>
+        </header>
+
+        <main>
+            <div class="game-section">
+                <canvas id="chessCanvas" width="480" height="480"></canvas>
+            </div>
+
+            <div class="controls-section">
+                <div class="control-panel">
+                    <h2>⚙️ Panel de Control</h2>
+                    
+                    <div class="control-group">
+                        <button id="btnStartPause" class="btn btn-primary">▶️ Iniciar</button>
+                        <button id="btnReset" class="btn btn-secondary">🔄 Reset</button>
+                        <button id="btnResetTraining" class="btn btn-warning">🗑️ Reset Entrenamiento</button>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="speedSlider">Velocidad: <span id="speedValue">1x</span></label>
+                        <input type="range" id="speedSlider" min="1" max="100" value="1">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="epsilonSlider">Exploración (ε): <span id="epsilonValue">0.10</span></label>
+                        <input type="range" id="epsilonSlider" min="0" max="100" value="10">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="learningRateSlider">Tasa de aprendizaje (α): <span id="learningRateValue">0.10</span></label>
+                        <input type="range" id="learningRateSlider" min="1" max="100" value="10">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="discountSlider">Descuento (γ): <span id="discountValue">0.90</span></label>
+                        <input type="range" id="discountSlider" min="50" max="99" value="90">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="maxMovesSlider">Máx movimientos: <span id="maxMovesValue">200</span></label>
+                        <input type="range" id="maxMovesSlider" min="50" max="500" value="200">
+                    </div>
+
+                    <div class="control-group">
+                        <button id="btnExport" class="btn btn-info">📥 Exportar Conocimiento</button>
+                        <button id="btnImport" class="btn btn-info">📤 Importar Conocimiento</button>
+                    </div>
+                </div>
+
+                <div class="metrics-panel">
+                    <h2>📊 Métricas</h2>
+                    
+                    <div class="metric-group">
+                        <h3>Estado Actual</h3>
+                        <p>Partida: <span id="currentGame">0</span></p>
+                        <p>Movimiento: <span id="currentMove">0</span></p>
+                        <p>Turno: <span id="currentColor">Blancas</span></p>
+                    </div>
+
+                    <div class="metric-group">
+                        <h3>Estadísticas Globales</h3>
+                        <p>Total partidas: <span id="totalGames">0</span></p>
+                        <p>Victorias blancas: <span id="whiteWins">0</span></p>
+                        <p>Victorias negras: <span id="blackWins">0</span></p>
+                        <p>Tablas: <span id="draws">0</span></p>
+                        <p>Total movimientos: <span id="totalMoves">0</span></p>
+                        <p>Promedio movimientos/partida: <span id="avgMovesPerGame">0.0</span></p>
+                    </div>
+
+                    <div class="metric-group">
+                        <h3>Winrate</h3>
+                        <p class="white-team">⚪ Blancas: <span id="whiteWinrate">0.0%</span></p>
+                        <p class="black-team">⚫ Negras: <span id="blackWinrate">0.0%</span></p>
+                    </div>
+
+                    <div class="metric-group">
+                        <h3>Progreso de Entrenamiento</h3>
+                        <p>Q-table blancas: <span id="whiteQSize">0</span> estados</p>
+                        <p>Entradas blancas: <span id="whiteTotalEntries">0</span></p>
+                        <p>Q-table negras: <span id="blackQSize">0</span> estados</p>
+                        <p>Entradas negras: <span id="blackTotalEntries">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>💡 <strong>Objetivo:</strong> Las blancas y las negras aprenden a jugar ajedrez mediante Q-Learning.</p>
+            <p>🎯 <strong>Reglas:</strong> Movimientos válidos de ajedrez estándar. Jaque mate o ahogado terminan la partida.</p>
+            <p>🧠 <strong>IA:</strong> Q-Learning tabular con exploración ε-greedy y persistencia en localStorage.</p>
+            <p>💾 <strong>Conocimiento:</strong> El aprendizaje se guarda automáticamente en el navegador.</p>
+        </footer>
+    </div>
+
+    <script src="js/board.js"></script>
+    <script src="js/agents.js"></script>
+    <script src="js/training.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>
