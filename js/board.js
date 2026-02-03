@@ -566,7 +566,7 @@ class ChessBoard {
             for (let col = 0; col < BOARD_SIZE; col++) {
                 const piece = this.getPiece(row, col);
                 if (piece && piece.color === enemyColor) {
-                    const moves = this.getValidMoves(row, col);
+                    const moves = this.getAttackingMoves(row, col, piece);
                     if (moves.some(m => m.row === kingRow && m.col === kingCol)) {
                         return true;
                     }
