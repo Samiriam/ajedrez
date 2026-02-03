@@ -230,7 +230,13 @@ class ChessAgent {
             rookTo: action.rookTo
         } : null;
         
-        board.movePiece(action.from.row, action.from.col, action.to.row, action.to.col, castlingInfo);
+        // Preparar información de En Passant si aplica
+        const enPassantInfo = action.enPassant ? {
+            capturedPawnRow: action.capturedPawnRow,
+            capturedPawnCol: action.capturedPawnCol
+        } : null;
+        
+        board.movePiece(action.from.row, action.from.col, action.to.row, action.to.col, castlingInfo, enPassantInfo);
         
         // Promoción de peón (simplificada: siempre a reina)
         if (piece.type === PIECE_TYPES.PAWN) {

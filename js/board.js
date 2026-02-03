@@ -81,6 +81,7 @@ class Piece {
 class ChessBoard {
     constructor() {
         this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+        this.lastMove = null; // Rastrear último movimiento para En Passant
         this.initializeBoard();
     }
 
@@ -90,6 +91,7 @@ class ChessBoard {
     initializeBoard() {
         // Limpiar tablero
         this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+        this.lastMove = null; // Resetear último movimiento para En Passant
 
         // Colocar piezas negras (fila 0 y 1)
         this.board[0][0] = new Piece(PIECE_TYPES.ROOK, PIECE_COLORS.BLACK);
@@ -146,9 +148,10 @@ class ChessBoard {
      * @param {number} toRow - Fila de destino
      * @param {number} toCol - Columna de destino
      * @param {Object} castlingInfo - Información de enroque si aplica
+     * @param {Object} enPassantInfo - Información de En Passant si aplica
      * @returns {boolean} - true si el movimiento fue exitoso
      */
-    movePiece(fromRow, fromCol, toRow, toCol, castlingInfo = null) {
+    movePiece(fromRow, fromCol, toRow, toCol, castlingInfo = null, enPassantInfo = null) {
         const piece = this.getPiece(fromRow, fromCol);
         if (piece) {
             piece.hasMoved = true;
@@ -164,6 +167,18 @@ class ChessBoard {
                     this.setPiece(castlingInfo.rookFrom.row, castlingInfo.rookFrom.col, null);
                 }
             }
+            
+            // Si es En Passant, remover el peón capturado
+            if (enPassantInfo) {
+                this.setPiece(enPassantInfo.capturedPawnRow, enPassantInfo.capturedPawnCol, null);
+            }
+            
+            // Rastrear el último movimiento
+            this.lastMove = {
+                from: { row: fromRow, col: fromCol },
+                to: { row: toRow, col: toCol },
+                piece: piece
+            };
             
             return true;
         }
@@ -229,6 +244,31 @@ class ChessBoard {
                 const targetPiece = this.getPiece(newRow, newCol);
                 if (targetPiece && targetPiece.color !== color) {
                     moves.push({ row: newRow, col: newCol });
+                }
+            }
+        }
+
+        // En Passant - captura especial de peón
+        if (this.lastMove && this.lastMove.piece && this.lastMove.piece.type === PIECE_TYPES.PAWN) {
+            const lastPiece = this.lastMove.piece;
+            const lastFromRow = this.lastMove.from.row;
+            const lastToRow = this.lastMove.to.row;
+            const lastToCol = this.lastMove.to.col;
+            
+            // Verificar si el peón enemigo avanzó 2 casillas
+            const enemyDirection = color === PIECE_COLORS.WHITE ? 1 : -1;
+            const enemyStartRow = color === PIECE_COLORS.WHITE ? 1 : 6;
+            
+            if (lastFromRow === enemyStartRow && lastToRow === lastFromRow + 2 * enemyDirection) {
+                // Verificar si el peón actual está en la misma fila y columna adyacente
+                if (row === lastFromRow + enemyDirection && Math.abs(col - lastToCol) === 1) {
+                    moves.push({
+                        row: row + direction,
+                        col: lastToCol,
+                        enPassant: true,
+                        capturedPawnRow: lastToRow,
+                        capturedPawnCol: lastToCol
+                    });
                 }
             }
         }
@@ -602,6 +642,13 @@ class ChessBoard {
                             moveObj.rookTo = move.rookTo;
                         }
                         
+                        // Incluir información de En Passant si aplica
+                        if (move.enPassant) {
+                            moveObj.enPassant = move.enPassant;
+                            moveObj.capturedPawnRow = move.capturedPawnRow;
+                            moveObj.capturedPawnCol = move.capturedPawnCol;
+                        }
+                        
                         allMoves.push(moveObj);
                     }
                 }
@@ -643,6 +690,14 @@ class ChessBoard {
                     clonedBoard.setPiece(row, col, piece.clone());
                 }
             }
+        }
+        // Clonar último movimiento para En Passant
+        if (this.lastMove) {
+            clonedBoard.lastMove = {
+                from: { ...this.lastMove.from },
+                to: { ...this.lastMove.to },
+                piece: this.lastMove.piece.clone()
+            };
         }
         return clonedBoard;
     }
