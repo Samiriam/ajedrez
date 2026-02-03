@@ -224,7 +224,13 @@ class ChessAgent {
         const piece = board.getPiece(action.from.row, action.from.col);
         const capturedPiece = board.getPiece(action.to.row, action.to.col);
         
-        board.movePiece(action.from.row, action.from.col, action.to.row, action.to.col);
+        // Preparar información de enroque si aplica
+        const castlingInfo = action.castling ? {
+            rookFrom: action.rookFrom,
+            rookTo: action.rookTo
+        } : null;
+        
+        board.movePiece(action.from.row, action.from.col, action.to.row, action.to.col, castlingInfo);
         
         // Promoción de peón (simplificada: siempre a reina)
         if (piece.type === PIECE_TYPES.PAWN) {

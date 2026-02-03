@@ -103,6 +103,12 @@ Cada agente observa:
 
 ### Reglas del Juego
 - **Movimientos válidos**: Todas las piezas de ajedrez con sus movimientos estándar
+- **Enroque (Castling)**: Movimiento especial del rey y la torre (corto O-O y largo O-O-O)
+  - El rey y la torre correspondiente no deben haberse movido antes
+  - No debe haber piezas entre el rey y la torre
+  - El rey no debe estar en jaque
+  - El rey no debe pasar por casillas atacadas
+  - El rey no debe terminar en jaque
 - **Promoción de peón**: Los peones se promocionan automáticamente a reina
 - **Jaque mate**: Fin del juego cuando el rey está en jaque y no tiene movimientos válidos
 - **Ahogado**: Fin del juego cuando el rey no está en jaque pero no tiene movimientos válidos
@@ -229,9 +235,11 @@ Posibles mejoras para el proyecto:
 1. **Deep Q-Networks (DQN)**: Reemplazar Q-table tabular con una red neuronal
 2. **AlphaZero-style**: Usar Monte Carlo Tree Search (MCTS) con redes neuronales
 3. **Self-play mejorado**: Implementar técnicas modernas de auto-aprendizaje
-4. **Enroque**: Implementar movimientos de enroque
+4. ~~**Enroque**: Implementar movimientos de enroque~~ ✅ **IMPLEMENTADO**
 5. **Captura al paso**: Implementar la regla de captura al paso
 6. **Torneos**: Modo torneo entre diferentes versiones de la IA
+7. **Modo Humano vs IA**: Permitir que un humano juegue contra la IA entrenada
+8. **Gráficas de progreso**: Visualizar winrate y métricas en tiempo real
 
 ## 📝 Notas Técnicas
 

@@ -22,6 +22,12 @@ const PIECE_TYPES = {
     KING: 'king'
 };
 
+// Tipos de enroque
+const CASTLING_TYPES = {
+    KINGSIDE: 'kingside',   // Enroque corto (O-O)
+    QUEENSIDE: 'queenside'  // Enroque largo (O-O-O)
+};
+
 // Símbolos Unicode para las piezas
 const PIECE_SYMBOLS = {
     white: {
@@ -135,13 +141,30 @@ class ChessBoard {
 
     /**
      * Mueve una pieza de una posición a otra
+     * @param {number} fromRow - Fila de origen
+     * @param {number} fromCol - Columna de origen
+     * @param {number} toRow - Fila de destino
+     * @param {number} toCol - Columna de destino
+     * @param {Object} castlingInfo - Información de enroque si aplica
+     * @returns {boolean} - true si el movimiento fue exitoso
      */
-    movePiece(fromRow, fromCol, toRow, toCol) {
+    movePiece(fromRow, fromCol, toRow, toCol, castlingInfo = null) {
         const piece = this.getPiece(fromRow, fromCol);
         if (piece) {
             piece.hasMoved = true;
             this.setPiece(toRow, toCol, piece);
             this.setPiece(fromRow, fromCol, null);
+            
+            // Si es un enroque, mover también la torre
+            if (castlingInfo) {
+                const rook = this.getPiece(castlingInfo.rookFrom.row, castlingInfo.rookFrom.col);
+                if (rook) {
+                    rook.hasMoved = true;
+                    this.setPiece(castlingInfo.rookTo.row, castlingInfo.rookTo.col, rook);
+                    this.setPiece(castlingInfo.rookFrom.row, castlingInfo.rookFrom.col, null);
+                }
+            }
+            
             return true;
         }
         return false;
@@ -294,7 +317,113 @@ class ChessBoard {
             }
         }
 
+        // Agregar movimientos de enroque si es posible
+        const castlingMoves = this.getCastlingMoves(row, col, color);
+        moves.push(...castlingMoves);
+
         return moves;
+    }
+
+    /**
+     * Obtiene los movimientos de enroque válidos
+     */
+    getCastlingMoves(row, col, color) {
+        const moves = [];
+
+        // Verificar si el rey está en su posición inicial
+        const kingRow = color === PIECE_COLORS.WHITE ? 7 : 0;
+        if (row !== kingRow || col !== 4) {
+            return moves; // El rey no está en su posición inicial
+        }
+
+        const king = this.getPiece(row, col);
+        if (!king || king.type !== PIECE_TYPES.KING || king.hasMoved) {
+            return moves; // El rey ya se ha movido
+        }
+
+        // Verificar que el rey no esté en jaque
+        if (this.isInCheck(color)) {
+            return moves;
+        }
+
+        // Enroque corto (kingside)
+        const kingsideRookCol = 7;
+        const kingsideRook = this.getPiece(row, kingsideRookCol);
+        if (this.canCastle(row, color, kingsideRook, kingsideRookCol, [5, 6])) {
+            moves.push({
+                row: row,
+                col: 6,
+                castling: CASTLING_TYPES.KINGSIDE,
+                rookFrom: { row: row, col: kingsideRookCol },
+                rookTo: { row: row, col: 5 }
+            });
+        }
+
+        // Enroque largo (queenside)
+        const queensideRookCol = 0;
+        const queensideRook = this.getPiece(row, queensideRookCol);
+        if (this.canCastle(row, color, queensideRook, queensideRookCol, [1, 2, 3])) {
+            moves.push({
+                row: row,
+                col: 2,
+                castling: CASTLING_TYPES.QUEENSIDE,
+                rookFrom: { row: row, col: queensideRookCol },
+                rookTo: { row: row, col: 3 }
+            });
+        }
+
+        return moves;
+    }
+
+    /**
+     * Verifica si se puede realizar el enroque
+     */
+    canCastle(row, color, rook, rookCol, emptyCols) {
+        // Verificar que la torre exista y no se haya movido
+        if (!rook || rook.type !== PIECE_TYPES.ROOK || rook.hasMoved) {
+            return false;
+        }
+
+        // Verificar que las casillas entre el rey y la torre estén vacías
+        for (const col of emptyCols) {
+            if (this.getPiece(row, col)) {
+                return false;
+            }
+        }
+
+        // Verificar que el rey no pase por casillas atacadas
+        const kingCol = 4;
+        const enemyColor = color === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
+        
+        // Para enroque corto, verificar casillas 5 y 6
+        // Para enroque largo, verificar casillas 3 y 2
+        const checkCols = emptyCols.slice(-2); // Las últimas 2 casillas
+        
+        for (const col of checkCols) {
+            if (this.isSquareAttacked(row, col, enemyColor)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Verifica si una casilla está atacada por un color
+     */
+    isSquareAttacked(row, col, attackerColor) {
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const piece = this.getPiece(r, c);
+                if (piece && piece.color === attackerColor) {
+                    const moves = this.getValidMoves(r, c);
+                    if (moves.some(m => m.row === row && m.col === col)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -381,11 +510,20 @@ class ChessBoard {
                 if (piece && piece.color === color) {
                     const moves = this.getValidMoves(row, col);
                     for (const move of moves) {
-                        allMoves.push({
+                        const moveObj = {
                             from: { row, col },
-                            to: move,
+                            to: { row: move.row, col: move.col },
                             piece: piece
-                        });
+                        };
+                        
+                        // Incluir información de enroque si aplica
+                        if (move.castling) {
+                            moveObj.castling = move.castling;
+                            moveObj.rookFrom = move.rookFrom;
+                            moveObj.rookTo = move.rookTo;
+                        }
+                        
+                        allMoves.push(moveObj);
                     }
                 }
             }
@@ -483,6 +621,7 @@ if (typeof module !== 'undefined' && module.exports) {
         PIECE_COLORS,
         PIECE_TYPES,
         PIECE_SYMBOLS,
-        BOARD_SIZE
+        BOARD_SIZE,
+        CASTLING_TYPES
     };
 }
