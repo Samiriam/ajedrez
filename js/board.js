@@ -82,6 +82,10 @@ class ChessBoard {
     constructor() {
         this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
         this.lastMove = null; // Rastrear último movimiento para En Passant
+        this.movesSinceLastCaptureOrPawnMove = {
+            white: 0,
+            black: 0
+        }; // Rastrear movimientos para regla de 50 movimientos
         this.initializeBoard();
     }
 
@@ -92,6 +96,10 @@ class ChessBoard {
         // Limpiar tablero
         this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
         this.lastMove = null; // Resetear último movimiento para En Passant
+        this.movesSinceLastCaptureOrPawnMove = {
+            white: 0,
+            black: 0
+        }; // Resetear contador para regla de 50 movimientos
 
         // Colocar piezas negras (fila 0 y 1)
         this.board[0][0] = new Piece(PIECE_TYPES.ROOK, PIECE_COLORS.BLACK);
@@ -180,9 +188,35 @@ class ChessBoard {
                 piece: piece
             };
             
+            // Actualizar contador para regla de 50 movimientos
+            const capturedPiece = enPassantInfo ? 
+                this.getPiece(enPassantInfo.capturedPawnRow, enPassantInfo.capturedPawnCol) :
+                (this.lastMove ? this.getPiece(toRow, toCol) : null);
+            
+            const isCapture = capturedPiece !== null;
+            const isPawnMove = piece.type === PIECE_TYPES.PAWN;
+            
+            // Si hubo captura o movimiento de peón, resetear el contador del oponente
+            if (isCapture || isPawnMove) {
+                const opponentColor = piece.color === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
+                this.movesSinceLastCaptureOrPawnMove[opponentColor] = 0;
+            }
+            
+            // Incrementar contador del jugador actual
+            this.movesSinceLastCaptureOrPawnMove[piece.color]++;
+            
             return true;
         }
         return false;
+    }
+
+    /**
+     * Verifica si aplica la regla de 50 movimientos
+     * @param {string} color - Color del jugador a verificar
+     * @returns {boolean} - true si se debe declarar tablas por regla de 50 movimientos
+     */
+    is50MoveRule(color) {
+        return this.movesSinceLastCaptureOrPawnMove[color] >= 50;
     }
 
     /**
@@ -699,6 +733,11 @@ class ChessBoard {
                 piece: this.lastMove.piece.clone()
             };
         }
+        // Clonar contador para regla de 50 movimientos
+        clonedBoard.movesSinceLastCaptureOrPawnMove = {
+            white: this.movesSinceLastCaptureOrPawnMove.white,
+            black: this.movesSinceLastCaptureOrPawnMove.black
+        };
         return clonedBoard;
     }
 

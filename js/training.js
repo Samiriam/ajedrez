@@ -103,6 +103,12 @@ class TrainingManager {
             return { gameComplete: true, trainingComplete: false };
         }
 
+        // Verificar regla de 50 movimientos
+        if (this.board.is50MoveRule(this.currentColor)) {
+            this.endGame('draw', '50_move_rule');
+            return { gameComplete: true, trainingComplete: false };
+        }
+
         // Obtener agente actual
         const currentAgent = this.currentColor === PIECE_COLORS.WHITE ? this.whiteAgent : this.blackAgent;
         const opponentAgent = this.currentColor === PIECE_COLORS.WHITE ? this.blackAgent : this.whiteAgent;
