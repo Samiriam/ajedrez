@@ -238,15 +238,65 @@ class ChessAgent {
         
         board.movePiece(action.from.row, action.from.col, action.to.row, action.to.col, castlingInfo, enPassantInfo);
         
-        // Promoción de peón (simplificada: siempre a reina)
+        // Promoción de peón con opciones (basada en heurística)
         if (piece.type === PIECE_TYPES.PAWN) {
             const promotionRow = this.color === PIECE_COLORS.WHITE ? 0 : 7;
             if (action.to.row === promotionRow) {
-                board.setPiece(action.to.row, action.to.col, new Piece(PIECE_TYPES.QUEEN, this.color));
+                const promotionPiece = this.choosePromotionPiece(board);
+                board.setPiece(action.to.row, action.to.col, promotionPiece);
             }
         }
 
         return capturedPiece;
+    }
+
+    /**
+     * Elige la pieza de promoción de peón basada en heurística
+     * @param {ChessBoard} board - Tablero actual
+     * @returns {Piece} - Pieza de promoción elegida
+     */
+    choosePromotionPiece(board) {
+        // Heurística simple: elegir basado en material y posición
+        const opponentColor = this.color === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
+        const myMaterial = board.getMaterialValue(this.color);
+        const opponentMaterial = board.getMaterialValue(opponentColor);
+        const materialAdvantage = myMaterial - opponentMaterial;
+
+        // Preferir reina en la mayoría de casos
+        if (materialAdvantage > 2) {
+            return new Piece(PIECE_TYPES.QUEEN, this.color);
+        }
+        
+        // Si estamos en desventaja material, elegir pieza más fuerte disponible
+        const availablePieces = [
+            PIECE_TYPES.QUEEN,
+            PIECE_TYPES.ROOK,
+            PIECE_TYPES.BISHOP,
+            PIECE_TYPES.KNIGHT
+        ];
+
+        // Prioridad basada en la situación del tablero
+        // En desventaja material, preferir piezas más fuertes
+        // En ventaja o igualdad, preferir reina
+        if (materialAdvantage >= 0) {
+            return new Piece(PIECE_TYPES.QUEEN, this.color);
+        }
+
+        // En desventaja material leve, preferir reina o torre
+        if (materialAdvantage >= -2) {
+            return Math.random() < 0.7 ? 
+                new Piece(PIECE_TYPES.QUEEN, this.color) :
+                new Piece(PIECE_TYPES.ROOK, this.color);
+        }
+
+        // En desventaja material moderada, elegir aleatoriamente entre reina, torre y alfil
+        if (materialAdvantage >= -4) {
+            const options = [PIECE_TYPES.QUEEN, PIECE_TYPES.ROOK, PIECE_TYPES.BISHOP];
+            return new Piece(options[Math.floor(Math.random() * options.length)], this.color);
+        }
+
+        // En desventaja material severa, elegir aleatoriamente entre todas las opciones
+        return new Piece(availablePieces[Math.floor(Math.random() * availablePieces.length)], this.color);
     }
 
     /**
