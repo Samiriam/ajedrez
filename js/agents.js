@@ -140,6 +140,58 @@ class QTable {
         } catch (e) {
             console.warn('No se pudo cargar desde localStorage:', e);
         }
+
+        // Si la tabla está vacía, cargar conocimiento básico
+        if (this.size() === 0) {
+            this.loadBasicKnowledge();
+        }
+    }
+
+    /**
+     * Carga conocimiento básico desde archivo JSON
+     */
+    async loadBasicKnowledge() {
+        try {
+            const response = await fetch('data/basic_chess_knowledge.json');
+            if (response.ok) {
+                const basicKnowledge = JSON.parse(await response.text());
+                this.importBasicKnowledge(basicKnowledge);
+                console.log('Cargado conocimiento básico desde archivo');
+            }
+        } catch (e) {
+            console.warn('No se pudo cargar conocimiento básico:', e);
+        }
+    }
+
+    /**
+     * Importa conocimiento básico desde objeto JSON
+     */
+    importBasicKnowledge(basicKnowledge) {
+        if (basicKnowledge.white && basicKnowledge.white.entries) {
+            const storageKey = this.storageKey;
+            if (storageKey.includes('white')) {
+                for (const entry of basicKnowledge.white.entries) {
+                    const stateKey = JSON.stringify(entry.state);
+                    if (!this.table.has(stateKey)) {
+                        this.table.set(stateKey, new Map(Object.entries(entry.state.actions)));
+                    }
+                }
+            }
+        }
+
+        if (basicKnowledge.black && basicKnowledge.black.entries) {
+            const storageKey = this.storageKey;
+            if (storageKey.includes('black')) {
+                for (const entry of basicKnowledge.black.entries) {
+                    const stateKey = JSON.stringify(entry.state);
+                    if (!this.table.has(stateKey)) {
+                        this.table.set(stateKey, new Map(Object.entries(entry.state.actions)));
+                    }
+                }
+            }
+        }
+
+        this.saveToStorage();
     }
 
     /**
