@@ -86,6 +86,7 @@ class ChessBoard {
             white: 0,
             black: 0
         }; // Rastrear movimientos para regla de 50 movimientos
+        this.positionHistory = []; // Rastrear historial de posiciones para triple repetición
         this.initializeBoard();
     }
 
@@ -100,6 +101,7 @@ class ChessBoard {
             white: 0,
             black: 0
         }; // Resetear contador para regla de 50 movimientos
+        this.positionHistory = []; // Resetear historial de posiciones para triple repetición
 
         // Colocar piezas negras (fila 0 y 1)
         this.board[0][0] = new Piece(PIECE_TYPES.ROOK, PIECE_COLORS.BLACK);
@@ -205,6 +207,9 @@ class ChessBoard {
             // Incrementar contador del jugador actual
             this.movesSinceLastCaptureOrPawnMove[piece.color]++;
             
+            // Agregar posición al historial para triple repetición
+            this.positionHistory.push(this.toString());
+            
             return true;
         }
         return false;
@@ -217,6 +222,16 @@ class ChessBoard {
      */
     is50MoveRule(color) {
         return this.movesSinceLastCaptureOrPawnMove[color] >= 50;
+    }
+
+    /**
+     * Verifica si aplica la regla de triple repetición
+     * @returns {boolean} - true si se debe declarar tablas por triple repetición
+     */
+    isThreefoldRepetition() {
+        const currentPosition = this.toString();
+        const count = this.positionHistory.filter(pos => pos === currentPosition).length;
+        return count >= 3;
     }
 
     /**
@@ -738,6 +753,8 @@ class ChessBoard {
             white: this.movesSinceLastCaptureOrPawnMove.white,
             black: this.movesSinceLastCaptureOrPawnMove.black
         };
+        // Clonar historial de posiciones para triple repetición
+        clonedBoard.positionHistory = [...this.positionHistory];
         return clonedBoard;
     }
 

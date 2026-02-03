@@ -109,6 +109,12 @@ class TrainingManager {
             return { gameComplete: true, trainingComplete: false };
         }
 
+        // Verificar regla de triple repetición
+        if (this.board.isThreefoldRepetition()) {
+            this.endGame('draw', 'threefold_repetition');
+            return { gameComplete: true, trainingComplete: false };
+        }
+
         // Obtener agente actual
         const currentAgent = this.currentColor === PIECE_COLORS.WHITE ? this.whiteAgent : this.blackAgent;
         const opponentAgent = this.currentColor === PIECE_COLORS.WHITE ? this.blackAgent : this.whiteAgent;
