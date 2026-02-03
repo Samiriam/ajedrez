@@ -10,7 +10,80 @@ class QTable {
     constructor(storageKey) {
         this.storageKey = storageKey;
         this.table = new Map(); // key: estado, value: array de valores Q por acción
+        this.dropboxAccessToken = localStorage.getItem('dropbox_access_token') || null;
+        this.dropboxPath = '/Apps/Ajedrez Q-Learning/' + storageKey + '.json';
+        this.useDropbox = this.dropboxAccessToken !== null;
         this.loadFromStorage();
+    }
+
+    /**
+     * Guarda la tabla Q en Dropbox
+     */
+    async saveToDropbox() {
+        try {
+            const data = {};
+            for (const [key, value] of this.table.entries()) {
+                data[key] = Array.from(value.entries());
+            }
+            
+            const response = await fetch('https://api.dropboxapi.com/2/files/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                    'Content-Type': 'application/octet-stream',
+                    'Dropbox-API-Arg': JSON.stringify({
+                        path: this.dropboxPath,
+                        mode: 'overwrite',
+                        autorename: true,
+                        mute: false
+                    })
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                console.log('Guardado en Dropbox:', this.dropboxPath);
+            } else {
+                console.error('Error al guardar en Dropbox:', await response.text());
+            }
+        } catch (e) {
+            console.error('Error al guardar en Dropbox:', e);
+        }
+    }
+
+    /**
+     * Carga la tabla Q desde Dropbox
+     */
+    async loadFromDropbox() {
+        try {
+            const response = await fetch('https://api.dropboxapi.com/2/files/download', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ path: this.dropboxPath })
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const text = await blob.text();
+                const parsed = JSON.parse(text);
+                
+                for (const [key, value] of Object.entries(parsed)) {
+                    this.table.set(key, new Map(value));
+                }
+                
+                console.log(`Cargados ${this.size()} estados desde Dropbox`);
+                return true;
+            } else {
+                console.error('Error al cargar desde Dropbox:', await response.text());
+                return false;
+            }
+        } catch (e) {
+            console.error('Error al cargar desde Dropbox:', e);
+            return false;
+        }
     }
 
     /**
@@ -110,40 +183,52 @@ class QTable {
     }
 
     /**
-     * Guarda la tabla Q en localStorage
+     * Guarda la tabla Q en localStorage o Dropbox
      */
-    saveToStorage() {
+    async saveToStorage() {
         try {
             const data = {};
             for (const [key, value] of this.table.entries()) {
                 data[key] = Array.from(value.entries());
             }
-            localStorage.setItem(this.storageKey, JSON.stringify(data));
+            
+            if (this.useDropbox) {
+                await this.saveToDropbox();
+            } else {
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
+            }
         } catch (e) {
-            console.warn('No se pudo guardar en localStorage:', e);
+            console.warn('No se pudo guardar:', e);
         }
     }
 
     /**
-     * Carga la tabla Q desde localStorage
+     * Carga la tabla Q desde localStorage o Dropbox
      */
-    loadFromStorage() {
+    async loadFromStorage() {
         try {
-            const data = localStorage.getItem(this.storageKey);
-            if (data) {
-                const parsed = JSON.parse(data);
-                for (const [key, value] of Object.entries(parsed)) {
-                    this.table.set(key, new Map(value));
+            let loaded = false;
+            
+            if (this.useDropbox) {
+                loaded = await this.loadFromDropbox();
+            } else {
+                const data = localStorage.getItem(this.storageKey);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    for (const [key, value] of Object.entries(parsed)) {
+                        this.table.set(key, new Map(value));
+                    }
+                    console.log(`Cargados ${this.size()} estados desde localStorage`);
+                    loaded = true;
                 }
-                console.log(`Cargados ${this.size()} estados desde localStorage`);
+            }
+            
+            // Si la tabla está vacía, cargar conocimiento básico
+            if (!loaded || this.size() === 0) {
+                this.loadBasicKnowledge();
             }
         } catch (e) {
-            console.warn('No se pudo cargar desde localStorage:', e);
-        }
-
-        // Si la tabla está vacía, cargar conocimiento básico
-        if (this.size() === 0) {
-            this.loadBasicKnowledge();
+            console.warn('No se pudo cargar:', e);
         }
     }
 
@@ -209,6 +294,20 @@ class QTable {
             data[key] = Array.from(value.entries());
         }
         return JSON.stringify(data, null, 2);
+    }
+
+    /**
+     * Configura el access token de Dropbox
+     */
+    setDropboxToken(token) {
+        this.dropboxAccessToken = token;
+        this.useDropbox = token !== null && token !== '';
+        localStorage.setItem('dropbox_access_token', token || '');
+        
+        // Si se activa Dropbox, recargar desde Dropbox
+        if (this.useDropbox) {
+            this.loadFromStorage();
+        }
     }
 
     /**

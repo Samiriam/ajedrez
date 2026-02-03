@@ -118,6 +118,11 @@ class UIManager {
             this.importKnowledge();
         });
 
+        // Botón Configurar Dropbox
+        document.getElementById('btnConfigDropbox').addEventListener('click', () => {
+            this.configDropbox();
+        });
+
         // Atajos de teclado
         document.addEventListener('keydown', (e) => {
             switch (e.key) {
@@ -216,31 +221,16 @@ class UIManager {
     }
 
     /**
-     * Muestra una notificación
+     * Configura Dropbox API
      */
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            background: ${type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db'};
-            color: white;
-            border-radius: 5px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            z-index: 1000;
-            animation: slideIn 0.3s ease-out;
-        `;
-
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease-out';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
+    configDropbox() {
+        const token = prompt('Ingresa tu Access Token de Dropbox:\n\nVe a DROPBOX_SETUP.md para obtener instrucciones', localStorage.getItem('dropbox_access_token') || '');
+        
+        if (token !== null) {
+            this.chessEngine.whiteAgent.qTable.setDropboxToken(token);
+            this.chessEngine.blackAgent.qTable.setDropboxToken(token);
+            this.showNotification('Dropbox configurado correctamente', 'success');
+        }
     }
 
     /**
