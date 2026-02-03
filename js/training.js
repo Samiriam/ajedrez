@@ -246,6 +246,9 @@ class TrainingManager {
         this.whiteAgent.saveKnowledge();
         this.blackAgent.saveKnowledge();
 
+        // Notificar actualización de métricas ANTES de iniciar nueva partida
+        this.notifyMetricsUpdate();
+
         // Notificar fin de partida
         if (this.onGameComplete) {
             this.onGameComplete(gameResult);
@@ -253,7 +256,6 @@ class TrainingManager {
 
         // Iniciar nueva partida
         this.startNewGame();
-        this.notifyMetricsUpdate();
     }
 
     /**
