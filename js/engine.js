@@ -362,9 +362,16 @@ let chessEngine = null;
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    chessEngine = new ChessEngine();
-    console.log('Motor de ajedrez inicializado');
-    console.log('Usa chessEngine para controlar el juego');
+    try {
+        chessEngine = new ChessEngine();
+        console.log('Motor de ajedrez inicializado');
+        console.log('Usa chessEngine para controlar el juego');
+        
+        // Disparar evento personalizado para indicar que el motor está listo
+        window.dispatchEvent(new CustomEvent('chessEngineReady'));
+    } catch (error) {
+        console.error('Error al inicializar el motor de ajedrez:', error);
+    }
 });
 
 // Exportar para uso en otros módulos

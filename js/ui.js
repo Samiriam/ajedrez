@@ -243,14 +243,33 @@ class UIManager {
 // Inicializar UI cuando el motor esté listo
 let uiManager = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Esperar a que chessEngine esté inicializado
-    setTimeout(() => {
-        if (chessEngine) {
+// Función para inicializar la UI
+function initializeUI() {
+    if (chessEngine) {
+        try {
             uiManager = new UIManager(chessEngine);
             console.log('UI inicializada');
+        } catch (error) {
+            console.error('Error al inicializar la UI:', error);
         }
-    }, 100);
+    } else {
+        console.error('chessEngine no está disponible');
+    }
+}
+
+// Escuchar evento personalizado cuando el motor esté listo
+window.addEventListener('chessEngineReady', () => {
+    initializeUI();
+});
+
+// También escuchar DOMContentLoaded por si el evento ya se disparó
+document.addEventListener('DOMContentLoaded', () => {
+    // Esperar un poco para asegurar que el motor esté inicializado
+    setTimeout(() => {
+        if (!uiManager) {
+            initializeUI();
+        }
+    }, 50);
 });
 
 // Añadir estilos para animaciones
