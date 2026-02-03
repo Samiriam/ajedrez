@@ -18,6 +18,18 @@ class UIManager {
      * Configura los event listeners de los controles
      */
     setupEventListeners() {
+        // Botones de modo de juego
+        const btnModeTraining = document.getElementById('btnModeTraining');
+        const btnModeHuman = document.getElementById('btnModeHuman');
+        
+        btnModeTraining.addEventListener('click', () => {
+            this.chessEngine.setGameMode('training');
+        });
+        
+        btnModeHuman.addEventListener('click', () => {
+            this.chessEngine.setGameMode('human_vs_ai');
+        });
+
         // Botón Iniciar/Pausar
         const btnStartPause = document.getElementById('btnStartPause');
         btnStartPause.addEventListener('click', () => {

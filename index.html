@@ -11,6 +11,14 @@
         <header>
             <h1>♟️ Ajedrez con Q-Learning</h1>
             <p>Entrenamiento automático de IA - Blancas vs Negras</p>
+            
+            <div class="mode-selector">
+                <h3>🎮 Modo de Juego</h3>
+                <div class="mode-buttons">
+                    <button id="btnModeTraining" class="mode-btn active">🤖 Entrenamiento IA</button>
+                    <button id="btnModeHuman" class="mode-btn">👤 Humano vs IA</button>
+                </div>
+            </div>
         </header>
 
         <main>
@@ -101,6 +109,15 @@
             <p>🎯 <strong>Reglas:</strong> Movimientos válidos de ajedrez estándar. Jaque mate o ahogado terminan la partida.</p>
             <p>🧠 <strong>IA:</strong> Q-Learning tabular con exploración ε-greedy y persistencia en localStorage.</p>
             <p>💾 <strong>Conocimiento:</strong> El aprendizaje se guarda automáticamente en el navegador.</p>
+            <p>📚 <strong>Nuevas características:</strong></p>
+            <ul>
+                <li>✓ <strong>En Passant</strong> - Captura especial de peón</li>
+                <li>✓ <strong>Regla de 50 movimientos</strong> - Tablas si no hay capturas ni movimientos de peón en 50 movimientos</li>
+                <li>✓ <strong>Triple repetición</strong> - Tablas si la posición se repite 3 veces</li>
+                <li>✓ <strong>Promoción de peón con opciones</strong> - Elige pieza basada en heurística (reina, torre, alfil o caballo)</li>
+                <li>✓ <strong>Modo Humano vs IA</strong> - Juega contra el sistema o observa el entrenamiento</li>
+                <li>✓ <strong>Conocimiento básico</strong> - Carga automática al inicio si la tabla está vacía</li>
+            </ul>
         </footer>
     </div>
 

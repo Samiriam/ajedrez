@@ -22,6 +22,7 @@ class ChessEngine {
 
         // Estado del juego
         this.isRunning = false;
+        this.gameMode = 'training'; // 'training' o 'human_vs_ai'
         this.speed = 1;  // Multiplicador de velocidad (1x - 100x)
         this.lastTime = 0;
         this.accumulator = 0;
@@ -35,6 +36,7 @@ class ChessEngine {
 
         // Configurar callbacks del entrenamiento
         this.setupTrainingCallbacks();
+        this.setupHumanCallbacks();
 
         // Render inicial
         this.render();
@@ -58,13 +60,164 @@ class ChessEngine {
     }
 
     /**
+     * Configura los callbacks para modo humano vs IA
+     */
+    setupHumanCallbacks() {
+        // Callback para cuando el humano selecciona una pieza
+        this.onPieceSelected = null;
+        // Callback para cuando el humano realiza un movimiento
+        this.onHumanMove = null;
+        // Callback para cuando el juego termina en modo humano
+        this.onHumanGameEnd = null;
+    }
+
+    /**
+     * Cambia entre modos de juego
+     */
+    setGameMode(mode) {
+        this.gameMode = mode;
+        this.updateModeButtons();
+        
+        if (mode === 'training') {
+            // Modo de entrenamiento - deshabilitar interacción humana
+            this.canvas.style.cursor = 'default';
+            this.canvas.onclick = null;
+        } else if (mode === 'human_vs_ai') {
+            // Modo humano vs IA - habilitar interacción humana
+            this.canvas.style.cursor = 'pointer';
+            this.canvas.onclick = (e) => this.handleCanvasClick(e);
+        }
+    }
+
+    /**
+     * Actualiza los botones de modo
+     */
+    updateModeButtons() {
+        const btnTraining = document.getElementById('btnModeTraining');
+        const btnHuman = document.getElementById('btnModeHuman');
+        
+        if (this.gameMode === 'training') {
+            btnTraining.classList.add('active');
+            btnHuman.classList.remove('active');
+        } else {
+            btnTraining.classList.remove('active');
+            btnHuman.classList.add('active');
+        }
+    }
+
+    /**
+     * Maneja clics en el canvas para modo humano
+     */
+    handleCanvasClick(e) {
+        if (this.gameMode !== 'human_vs_ai') return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const col = Math.floor(x / this.cellSize);
+        const row = Math.floor(y / this.cellSize);
+
+        if (this.selectedCell) {
+            // Intentar mover la pieza seleccionada
+            const move = this.validMoves.find(m => m.to.row === row && m.to.col === col);
+            if (move) {
+                this.executeHumanMove(move);
+            }
+            this.selectedCell = null;
+            this.validMoves = [];
+            this.render();
+        } else {
+            // Seleccionar una pieza
+            const piece = this.board.getPiece(row, col);
+            if (piece && piece.color === PIECE_COLORS.WHITE) {
+                this.selectedCell = { row, col };
+                this.validMoves = this.board.getAllValidMoves(PIECE_COLORS.WHITE)
+                    .map(m => ({ from: { row: m.from.row, col: m.from.col }, to: { row: m.to.row, col: m.to.col } }));
+                this.render();
+            }
+        }
+    }
+
+    /**
+     * Ejecuta un movimiento humano
+     */
+    executeHumanMove(move) {
+        const piece = this.board.getPiece(move.from.row, move.from.col);
+        const capturedPiece = this.board.getPiece(move.to.row, move.to.col);
+        
+        // Preparar información de enroque si aplica
+        const castlingInfo = move.castling ? {
+            rookFrom: move.rookFrom,
+            rookTo: move.rookTo
+        } : null;
+        
+        // Preparar información de En Passant si aplica
+        const enPassantInfo = move.enPassant ? {
+            capturedPawnRow: move.capturedPawnRow,
+            capturedPawnCol: move.capturedPawnCol
+        } : null;
+        
+        this.board.movePiece(move.from.row, move.from.col, move.to.row, move.to.col, castlingInfo, enPassantInfo);
+        
+        // Promoción de peón
+        if (piece.type === PIECE_TYPES.PAWN) {
+            const promotionRow = piece.color === PIECE_COLORS.WHITE ? 0 : 7;
+            if (move.to.row === promotionRow) {
+                const promotionPiece = this.whiteAgent.choosePromotionPiece(this.board);
+                this.board.setPiece(move.to.row, move.to.col, promotionPiece);
+            }
+        }
+        
+        // Cambiar turno
+        const currentColor = this.trainingManager.currentColor;
+        const nextColor = currentColor === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
+        this.trainingManager.currentColor = nextColor;
+        
+        // Notificar movimiento
+        if (this.onHumanMove) {
+            this.onHumanMove(move, capturedPiece);
+        }
+        
+        this.render();
+        
+        // Verificar fin de juego
+        this.checkGameEnd();
+    }
+
+    /**
+     * Verifica si el juego terminó en modo humano
+     */
+    checkGameEnd() {
+        const currentColor = this.trainingManager.currentColor;
+        const allMoves = this.board.getAllValidMoves(currentColor);
+        
+        if (allMoves.length === 0) {
+            if (this.board.isInCheck(currentColor)) {
+                const winner = currentColor === PIECE_COLORS.WHITE ? 'black' : 'white';
+                if (this.onHumanGameEnd) {
+                    this.onHumanGameEnd(winner, 'checkmate');
+                }
+            } else {
+                if (this.onHumanGameEnd) {
+                    this.onHumanGameEnd('draw', 'stalemate');
+                }
+            }
+        }
+    }
+
+    /**
      * Inicia el juego
      */
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
             this.lastTime = performance.now();
-            this.trainingManager.startTraining();
+            
+            if (this.gameMode === 'training') {
+                // Modo de entrenamiento - IA vs IA
+                this.trainingManager.startTraining();
+            }
+            
             this.gameLoop();
         }
     }
@@ -129,13 +282,15 @@ class ChessEngine {
         // Acumular tiempo ajustado por velocidad
         this.accumulator += deltaTime * this.speed;
 
-        // Ejecutar pasos fijos
-        while (this.accumulator >= this.fixedDeltaTime) {
-            this.update();
-            this.accumulator -= this.fixedDeltaTime;
+        // Ejecutar pasos fijos solo en modo de entrenamiento
+        if (this.gameMode === 'training') {
+            while (this.accumulator >= this.fixedDeltaTime) {
+                this.update();
+                this.accumulator -= this.fixedDeltaTime;
+            }
         }
 
-        // Renderizar
+        // Renderizar siempre
         this.render();
 
         // Continuar el bucle
