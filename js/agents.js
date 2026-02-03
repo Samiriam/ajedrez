@@ -171,9 +171,12 @@ class QTable {
             const storageKey = this.storageKey;
             if (storageKey.includes('white')) {
                 for (const entry of basicKnowledge.white.entries) {
+                    const actions = entry.actions || (entry.state ? entry.state.actions : null);
+                    if (!actions) continue;
+
                     const stateKey = JSON.stringify(entry.state);
                     if (!this.table.has(stateKey)) {
-                        this.table.set(stateKey, new Map(Object.entries(entry.state.actions)));
+                        this.table.set(stateKey, new Map(Object.entries(actions)));
                     }
                 }
             }
@@ -183,9 +186,12 @@ class QTable {
             const storageKey = this.storageKey;
             if (storageKey.includes('black')) {
                 for (const entry of basicKnowledge.black.entries) {
+                    const actions = entry.actions || (entry.state ? entry.state.actions : null);
+                    if (!actions) continue;
+
                     const stateKey = JSON.stringify(entry.state);
                     if (!this.table.has(stateKey)) {
-                        this.table.set(stateKey, new Map(Object.entries(entry.state.actions)));
+                        this.table.set(stateKey, new Map(Object.entries(actions)));
                     }
                 }
             }
@@ -274,7 +280,9 @@ class ChessAgent {
      */
     executeAction(board, action) {
         const piece = board.getPiece(action.from.row, action.from.col);
-        const capturedPiece = board.getPiece(action.to.row, action.to.col);
+        const capturedPiece = action.enPassant ?
+            board.getPiece(action.capturedPawnRow, action.capturedPawnCol) :
+            board.getPiece(action.to.row, action.to.col);
         
         // Preparar información de enroque si aplica
         const castlingInfo = action.castling ? {

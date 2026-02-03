@@ -57,6 +57,10 @@ class ChessEngine {
         this.trainingManager.onMoveComplete = (moveInfo) => {
             this.render();
         };
+
+        this.trainingManager.onObservationMode = (mode) => {
+            this.updateObservationModeDisplay(mode);
+        };
     }
 
     /**
@@ -76,6 +80,7 @@ class ChessEngine {
      */
     setGameMode(mode) {
         this.gameMode = mode;
+        this.trainingManager.setGameMode(mode);
         this.updateModeButtons();
         
         if (mode === 'training') {
@@ -110,6 +115,7 @@ class ChessEngine {
      */
     handleCanvasClick(e) {
         if (this.gameMode !== 'human_vs_ai') return;
+        if (this.trainingManager.currentColor !== PIECE_COLORS.WHITE) return;
 
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -132,7 +138,7 @@ class ChessEngine {
             if (piece && piece.color === PIECE_COLORS.WHITE) {
                 this.selectedCell = { row, col };
                 this.validMoves = this.board.getAllValidMoves(PIECE_COLORS.WHITE)
-                    .map(m => ({ from: { row: m.from.row, col: m.from.col }, to: { row: m.to.row, col: m.to.col } }));
+                    .filter(m => m.from.row === row && m.from.col === col);
                 this.render();
             }
         }
@@ -143,7 +149,9 @@ class ChessEngine {
      */
     executeHumanMove(move) {
         const piece = this.board.getPiece(move.from.row, move.from.col);
-        const capturedPiece = this.board.getPiece(move.to.row, move.to.col);
+        const capturedPiece = move.enPassant ?
+            this.board.getPiece(move.capturedPawnRow, move.capturedPawnCol) :
+            this.board.getPiece(move.to.row, move.to.col);
         
         // Preparar información de enroque si aplica
         const castlingInfo = move.castling ? {
@@ -168,9 +176,22 @@ class ChessEngine {
             }
         }
         
-        // Cambiar turno
+        // Registrar movimiento en historial
         const currentColor = this.trainingManager.currentColor;
+        this.trainingManager.gameHistory.push({
+            move: this.trainingManager.currentMove,
+            color: currentColor,
+            from: move.from,
+            to: move.to,
+            captured: capturedPiece
+        });
+
+        // Registrar movimiento humano para aprendizaje
+        this.trainingManager.registerHumanMove(move, capturedPiece);
+
+        // Cambiar turno
         const nextColor = currentColor === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
+        this.trainingManager.currentMove++;
         this.trainingManager.currentColor = nextColor;
         
         // Notificar movimiento
@@ -179,9 +200,12 @@ class ChessEngine {
         }
         
         this.render();
-        
-        // Verificar fin de juego
-        this.checkGameEnd();
+
+        // Verificar fin de juego y, si aplica, responder con IA
+        const gameEnded = this.checkGameEnd();
+        if (!gameEnded && this.gameMode === 'human_vs_ai' && this.trainingManager.currentColor === PIECE_COLORS.BLACK) {
+            this.performAIMove();
+        }
     }
 
     /**
@@ -190,19 +214,73 @@ class ChessEngine {
     checkGameEnd() {
         const currentColor = this.trainingManager.currentColor;
         const allMoves = this.board.getAllValidMoves(currentColor);
-        
+
+        if (this.board.is50MoveRule()) {
+            this.trainingManager.endHumanGame('draw', '50_move_rule');
+            if (this.onHumanGameEnd) {
+                this.onHumanGameEnd('draw', '50_move_rule');
+            }
+            return true;
+        }
+
+        if (this.board.isThreefoldRepetition(currentColor)) {
+            this.trainingManager.endHumanGame('draw', 'threefold_repetition');
+            if (this.onHumanGameEnd) {
+                this.onHumanGameEnd('draw', 'threefold_repetition');
+            }
+            return true;
+        }
+
         if (allMoves.length === 0) {
             if (this.board.isInCheck(currentColor)) {
                 const winner = currentColor === PIECE_COLORS.WHITE ? 'black' : 'white';
+                this.trainingManager.endHumanGame(winner, 'checkmate');
                 if (this.onHumanGameEnd) {
                     this.onHumanGameEnd(winner, 'checkmate');
                 }
             } else {
+                this.trainingManager.endHumanGame('draw', 'stalemate');
                 if (this.onHumanGameEnd) {
                     this.onHumanGameEnd('draw', 'stalemate');
                 }
             }
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * Ejecuta un movimiento de IA en modo humano vs IA
+     */
+    performAIMove() {
+        if (this.gameMode !== 'human_vs_ai') return;
+        if (this.trainingManager.currentColor !== PIECE_COLORS.BLACK) return;
+
+        const currentAgent = this.blackAgent;
+        const currentState = currentAgent.getState(this.board);
+        const validMoves = this.board.getAllValidMoves(PIECE_COLORS.BLACK);
+
+        if (validMoves.length === 0) {
+            this.checkGameEnd();
+            return;
+        }
+
+        const action = currentAgent.selectAction(currentState, validMoves, this.trainingManager.epsilon);
+        const capturedPiece = currentAgent.executeAction(this.board, action);
+
+        this.trainingManager.gameHistory.push({
+            move: this.trainingManager.currentMove,
+            color: PIECE_COLORS.BLACK,
+            from: action.from,
+            to: action.to,
+            captured: capturedPiece
+        });
+
+        this.trainingManager.currentMove++;
+        this.trainingManager.currentColor = PIECE_COLORS.WHITE;
+
+        this.render();
+        this.checkGameEnd();
     }
 
     /**
@@ -489,6 +567,30 @@ class ChessEngine {
         document.getElementById('blackQSize').textContent = metrics.blackAgent.qTableSize;
         document.getElementById('whiteTotalEntries').textContent = metrics.whiteAgent.totalEntries;
         document.getElementById('blackTotalEntries').textContent = metrics.blackAgent.totalEntries;
+        
+        // Actualizar estadísticas humanas si están disponibles
+        const humanWinsEl = document.getElementById('humanWins');
+        const humanGamesEl = document.getElementById('humanGames');
+        if (humanWinsEl && humanGamesEl) {
+            humanWinsEl.textContent = metrics.humanWins || 0;
+            humanGamesEl.textContent = metrics.humanGames || 0;
+        }
+    }
+
+    /**
+     * Actualiza la visualización del modo de observación
+     */
+    updateObservationModeDisplay(mode) {
+        const observationStatusEl = document.getElementById('observationStatus');
+        if (observationStatusEl) {
+            if (mode === 'human_vs_ai') {
+                observationStatusEl.textContent = '👁️ OBSERVANDO';
+                observationStatusEl.style.color = '#e74c3c';
+            } else {
+                observationStatusEl.textContent = '🔄 ENTRENANDO';
+                observationStatusEl.style.color = '#2ecc71';
+            }
+        }
     }
 
     /**

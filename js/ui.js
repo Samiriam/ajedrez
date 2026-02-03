@@ -12,6 +12,8 @@ class UIManager {
         this.setupEventListeners();
         this.updateSpeedDisplay();
         this.updateParameterDisplays();
+        this.updateModeButtons();
+        this.updateObservationStatus(chessEngine.gameMode);
     }
 
     /**
@@ -24,10 +26,14 @@ class UIManager {
         
         btnModeTraining.addEventListener('click', () => {
             this.chessEngine.setGameMode('training');
+            this.updateModeButtons();
+            this.updateObservationStatus('training');
         });
         
         btnModeHuman.addEventListener('click', () => {
             this.chessEngine.setGameMode('human_vs_ai');
+            this.updateModeButtons();
+            this.updateObservationStatus('human_vs_ai');
         });
 
         // Botón Iniciar/Pausar
@@ -248,6 +254,38 @@ class UIManager {
         } else {
             btnStartPause.textContent = '▶️ Iniciar';
             btnStartPause.classList.remove('running');
+        }
+    }
+
+    /**
+     * Actualiza los botones de modo
+     */
+    updateModeButtons() {
+        const btnTraining = document.getElementById('btnModeTraining');
+        const btnHuman = document.getElementById('btnModeHuman');
+        
+        if (this.chessEngine.gameMode === 'training') {
+            btnTraining.classList.add('active');
+            btnHuman.classList.remove('active');
+        } else {
+            btnTraining.classList.remove('active');
+            btnHuman.classList.add('active');
+        }
+    }
+
+    /**
+     * Actualiza el estado de observación
+     */
+    updateObservationStatus(mode) {
+        const observationStatusEl = document.getElementById('observationStatus');
+        if (observationStatusEl) {
+            if (mode === 'human_vs_ai') {
+                observationStatusEl.textContent = '👁️ OBSERVANDO';
+                observationStatusEl.style.color = '#e74c3c';
+            } else {
+                observationStatusEl.textContent = '🔄 ENTRENANDO';
+                observationStatusEl.style.color = '#2ecc71';
+            }
         }
     }
 }

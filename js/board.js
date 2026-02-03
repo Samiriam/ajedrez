@@ -82,10 +82,7 @@ class ChessBoard {
     constructor() {
         this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
         this.lastMove = null; // Rastrear último movimiento para En Passant
-        this.movesSinceLastCaptureOrPawnMove = {
-            white: 0,
-            black: 0
-        }; // Rastrear movimientos para regla de 50 movimientos
+        this.halfmoveClock = 0; // Contador para regla de 50 movimientos (half-moves)
         this.positionHistory = []; // Rastrear historial de posiciones para triple repetición
         this.initializeBoard();
     }
@@ -97,10 +94,7 @@ class ChessBoard {
         // Limpiar tablero
         this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
         this.lastMove = null; // Resetear último movimiento para En Passant
-        this.movesSinceLastCaptureOrPawnMove = {
-            white: 0,
-            black: 0
-        }; // Resetear contador para regla de 50 movimientos
+        this.halfmoveClock = 0; // Resetear contador para regla de 50 movimientos
         this.positionHistory = []; // Resetear historial de posiciones para triple repetición
 
         // Colocar piezas negras (fila 0 y 1)
@@ -130,6 +124,9 @@ class ChessBoard {
         this.board[7][5] = new Piece(PIECE_TYPES.BISHOP, PIECE_COLORS.WHITE);
         this.board[7][6] = new Piece(PIECE_TYPES.KNIGHT, PIECE_COLORS.WHITE);
         this.board[7][7] = new Piece(PIECE_TYPES.ROOK, PIECE_COLORS.WHITE);
+
+        // Registrar posición inicial (blancas al turno)
+        this.positionHistory.push(this.getPositionKey(PIECE_COLORS.WHITE));
     }
 
     /**
@@ -164,6 +161,10 @@ class ChessBoard {
     movePiece(fromRow, fromCol, toRow, toCol, castlingInfo = null, enPassantInfo = null) {
         const piece = this.getPiece(fromRow, fromCol);
         if (piece) {
+            const capturedPiece = enPassantInfo ?
+                this.getPiece(enPassantInfo.capturedPawnRow, enPassantInfo.capturedPawnCol) :
+                this.getPiece(toRow, toCol);
+
             piece.hasMoved = true;
             this.setPiece(toRow, toCol, piece);
             this.setPiece(fromRow, fromCol, null);
@@ -191,24 +192,18 @@ class ChessBoard {
             };
             
             // Actualizar contador para regla de 50 movimientos
-            const capturedPiece = enPassantInfo ? 
-                this.getPiece(enPassantInfo.capturedPawnRow, enPassantInfo.capturedPawnCol) :
-                (this.lastMove ? this.getPiece(toRow, toCol) : null);
-            
             const isCapture = capturedPiece !== null;
             const isPawnMove = piece.type === PIECE_TYPES.PAWN;
-            
-            // Si hubo captura o movimiento de peón, resetear el contador del oponente
+
             if (isCapture || isPawnMove) {
-                const opponentColor = piece.color === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
-                this.movesSinceLastCaptureOrPawnMove[opponentColor] = 0;
+                this.halfmoveClock = 0;
+            } else {
+                this.halfmoveClock += 1;
             }
-            
-            // Incrementar contador del jugador actual
-            this.movesSinceLastCaptureOrPawnMove[piece.color]++;
-            
-            // Agregar posición al historial para triple repetición
-            this.positionHistory.push(this.toString());
+
+            // Agregar posición al historial para triple repetición (con color al turno)
+            const nextColor = piece.color === PIECE_COLORS.WHITE ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE;
+            this.positionHistory.push(this.getPositionKey(nextColor));
             
             return true;
         }
@@ -220,18 +215,71 @@ class ChessBoard {
      * @param {string} color - Color del jugador a verificar
      * @returns {boolean} - true si se debe declarar tablas por regla de 50 movimientos
      */
-    is50MoveRule(color) {
-        return this.movesSinceLastCaptureOrPawnMove[color] >= 50;
+    is50MoveRule() {
+        // Regla oficial: 50 movimientos por bando = 100 half-moves
+        return this.halfmoveClock >= 100;
     }
 
     /**
      * Verifica si aplica la regla de triple repetición
      * @returns {boolean} - true si se debe declarar tablas por triple repetición
      */
-    isThreefoldRepetition() {
-        const currentPosition = this.toString();
+    isThreefoldRepetition(currentColor) {
+        const currentPosition = this.getPositionKey(currentColor);
         const count = this.positionHistory.filter(pos => pos === currentPosition).length;
         return count >= 3;
+    }
+
+    /**
+     * Genera una clave de posición para triple repetición
+     */
+    getPositionKey(colorToMove) {
+        return `${this.toString()}|${colorToMove}|${this.getCastlingRights()}|${this.getEnPassantTarget()}`;
+    }
+
+    /**
+     * Obtiene derechos de enroque (KQkq) basado en piezas y hasMoved
+     */
+    getCastlingRights() {
+        let rights = '';
+
+        const whiteKing = this.getPiece(7, 4);
+        if (whiteKing && whiteKing.type === PIECE_TYPES.KING && !whiteKing.hasMoved) {
+            const rookH = this.getPiece(7, 7);
+            const rookA = this.getPiece(7, 0);
+            if (rookH && rookH.type === PIECE_TYPES.ROOK && !rookH.hasMoved) rights += 'K';
+            if (rookA && rookA.type === PIECE_TYPES.ROOK && !rookA.hasMoved) rights += 'Q';
+        }
+
+        const blackKing = this.getPiece(0, 4);
+        if (blackKing && blackKing.type === PIECE_TYPES.KING && !blackKing.hasMoved) {
+            const rookH = this.getPiece(0, 7);
+            const rookA = this.getPiece(0, 0);
+            if (rookH && rookH.type === PIECE_TYPES.ROOK && !rookH.hasMoved) rights += 'k';
+            if (rookA && rookA.type === PIECE_TYPES.ROOK && !rookA.hasMoved) rights += 'q';
+        }
+
+        return rights || '-';
+    }
+
+    /**
+     * Obtiene la casilla objetivo de En Passant si aplica
+     */
+    getEnPassantTarget() {
+        if (!this.lastMove || !this.lastMove.piece || this.lastMove.piece.type !== PIECE_TYPES.PAWN) {
+            return '-';
+        }
+
+        const fromRow = this.lastMove.from.row;
+        const toRow = this.lastMove.to.row;
+
+        if (Math.abs(fromRow - toRow) !== 2) {
+            return '-';
+        }
+
+        const targetRow = (fromRow + toRow) / 2;
+        const targetCol = this.lastMove.to.col;
+        return `${targetRow},${targetCol}`;
     }
 
     /**
@@ -268,6 +316,37 @@ class ChessBoard {
     }
 
     /**
+     * Obtiene movimientos legales (filtra los que dejan al rey en jaque)
+     */
+    getLegalMoves(row, col) {
+        const piece = this.getPiece(row, col);
+        if (!piece) return [];
+
+        const moves = this.getValidMoves(row, col);
+        const legalMoves = [];
+
+        for (const move of moves) {
+            const testBoard = this.clone();
+            const castlingInfo = move.castling ? {
+                rookFrom: move.rookFrom,
+                rookTo: move.rookTo
+            } : null;
+            const enPassantInfo = move.enPassant ? {
+                capturedPawnRow: move.capturedPawnRow,
+                capturedPawnCol: move.capturedPawnCol
+            } : null;
+
+            testBoard.movePiece(row, col, move.row, move.col, castlingInfo, enPassantInfo);
+
+            if (!testBoard.isInCheck(piece.color)) {
+                legalMoves.push(move);
+            }
+        }
+
+        return legalMoves;
+    }
+
+    /**
      * Obtiene los movimientos válidos para un peón
      */
     getPawnMoves(row, col, color) {
@@ -300,24 +379,26 @@ class ChessBoard {
         // En Passant - captura especial de peón
         if (this.lastMove && this.lastMove.piece && this.lastMove.piece.type === PIECE_TYPES.PAWN) {
             const lastPiece = this.lastMove.piece;
-            const lastFromRow = this.lastMove.from.row;
-            const lastToRow = this.lastMove.to.row;
-            const lastToCol = this.lastMove.to.col;
-            
-            // Verificar si el peón enemigo avanzó 2 casillas
-            const enemyDirection = color === PIECE_COLORS.WHITE ? 1 : -1;
-            const enemyStartRow = color === PIECE_COLORS.WHITE ? 1 : 6;
-            
-            if (lastFromRow === enemyStartRow && lastToRow === lastFromRow + 2 * enemyDirection) {
-                // Verificar si el peón actual está en la misma fila y columna adyacente
-                if (row === lastFromRow + enemyDirection && Math.abs(col - lastToCol) === 1) {
-                    moves.push({
-                        row: row + direction,
-                        col: lastToCol,
-                        enPassant: true,
-                        capturedPawnRow: lastToRow,
-                        capturedPawnCol: lastToCol
-                    });
+            if (lastPiece.color !== color) {
+                const lastFromRow = this.lastMove.from.row;
+                const lastToRow = this.lastMove.to.row;
+                const lastToCol = this.lastMove.to.col;
+
+                // Verificar si el peón enemigo avanzó 2 casillas
+                if (Math.abs(lastFromRow - lastToRow) === 2) {
+                    // El peón propio debe estar adyacente al peón enemigo en su nueva fila
+                    if (row === lastToRow && Math.abs(col - lastToCol) === 1) {
+                        const targetRow = row + direction;
+                        if (this.isValidPosition(targetRow, lastToCol) && !this.getPiece(targetRow, lastToCol)) {
+                            moves.push({
+                                row: targetRow,
+                                col: lastToCol,
+                                enPassant: true,
+                                capturedPawnRow: lastToRow,
+                                capturedPawnCol: lastToCol
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -555,14 +636,11 @@ class ChessBoard {
         const direction = color === PIECE_COLORS.WHITE ? -1 : 1;
         const newRow = row + direction;
 
-        // Solo capturas diagonales
+        // Solo capturas diagonales (las casillas están atacadas aunque estén vacías)
         for (const dc of [-1, 1]) {
             const newCol = col + dc;
             if (this.isValidPosition(newRow, newCol)) {
-                const targetPiece = this.getPiece(newRow, newCol);
-                if (targetPiece && targetPiece.color !== color) {
-                    moves.push({ row: newRow, col: newCol });
-                }
+                moves.push({ row: newRow, col: newCol });
             }
         }
 
@@ -676,7 +754,7 @@ class ChessBoard {
             for (let col = 0; col < BOARD_SIZE; col++) {
                 const piece = this.getPiece(row, col);
                 if (piece && piece.color === color) {
-                    const moves = this.getValidMoves(row, col);
+                    const moves = this.getLegalMoves(row, col);
                     for (const move of moves) {
                         const moveObj = {
                             from: { row, col },
@@ -732,6 +810,8 @@ class ChessBoard {
      */
     clone() {
         const clonedBoard = new ChessBoard();
+        clonedBoard.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+
         for (let row = 0; row < BOARD_SIZE; row++) {
             for (let col = 0; col < BOARD_SIZE; col++) {
                 const piece = this.getPiece(row, col);
@@ -749,10 +829,7 @@ class ChessBoard {
             };
         }
         // Clonar contador para regla de 50 movimientos
-        clonedBoard.movesSinceLastCaptureOrPawnMove = {
-            white: this.movesSinceLastCaptureOrPawnMove.white,
-            black: this.movesSinceLastCaptureOrPawnMove.black
-        };
+        clonedBoard.halfmoveClock = this.halfmoveClock;
         // Clonar historial de posiciones para triple repetición
         clonedBoard.positionHistory = [...this.positionHistory];
         return clonedBoard;
@@ -762,12 +839,20 @@ class ChessBoard {
      * Convierte el tablero a una cadena para hash
      */
     toString() {
+        const typeMap = {
+            pawn: 'p',
+            knight: 'n',
+            bishop: 'b',
+            rook: 'r',
+            queen: 'q',
+            king: 'k'
+        };
         let str = '';
         for (let row = 0; row < BOARD_SIZE; row++) {
             for (let col = 0; col < BOARD_SIZE; col++) {
                 const piece = this.getPiece(row, col);
                 if (piece) {
-                    str += piece.color[0] + piece.type[0];
+                    str += piece.color[0] + typeMap[piece.type];
                 } else {
                     str += '--';
                 }
