@@ -224,12 +224,12 @@ class UIManager {
      * Configura Dropbox API
      */
     configDropbox() {
-        const token = prompt('Ingresa tu Access Token de Dropbox:\n\nVe a DROPBOX_SETUP.md para obtener instrucciones', localStorage.getItem('dropbox_access_token') || '');
+        const token = prompt('⚠️ ADVERTENCIA: Necesitas configurar Dropbox primero\n\n\nPara usar Dropbox, sigue estos pasos:\n\n1. Ve a DROPBOX_SETUP.md (instrucciones disponibles abajo)\n2. O haz clic en el enlace directo: https://www.dropbox.com/developers\n3. Crea una app y genera un access token\n4. Vuelve aquí y pega el token\n\nIngresa tu Access Token de Dropbox:', localStorage.getItem('dropbox_access_token') || '');
         
-        if (token !== null) {
+        if (token !== null && token !== '') {
             this.chessEngine.whiteAgent.qTable.setDropboxToken(token);
             this.chessEngine.blackAgent.qTable.setDropboxToken(token);
-            this.showNotification('Dropbox configurado correctamente', 'success');
+            this.showNotification('✅ Dropbox configurado correctamente', 'success');
         }
     }
 
