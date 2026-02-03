@@ -416,7 +416,7 @@ class ChessBoard {
             for (let c = 0; c < BOARD_SIZE; c++) {
                 const piece = this.getPiece(r, c);
                 if (piece && piece.color === attackerColor) {
-                    const moves = this.getValidMoves(r, c);
+                    const moves = this.getAttackingMoves(r, c, piece);
                     if (moves.some(m => m.row === row && m.col === col)) {
                         return true;
                     }
@@ -424,6 +424,85 @@ class ChessBoard {
             }
         }
         return false;
+    }
+
+    /**
+     * Obtiene los movimientos de ataque de una pieza (sin considerar enroque o jaque)
+     * Evita recursión infinita al verificar si una casilla está atacada
+     */
+    getAttackingMoves(row, col, piece) {
+        const moves = [];
+
+        switch (piece.type) {
+            case PIECE_TYPES.PAWN:
+                moves.push(...this.getPawnAttacks(row, col, piece.color));
+                break;
+            case PIECE_TYPES.ROOK:
+                moves.push(...this.getRookMoves(row, col, piece.color));
+                break;
+            case PIECE_TYPES.KNIGHT:
+                moves.push(...this.getKnightMoves(row, col, piece.color));
+                break;
+            case PIECE_TYPES.BISHOP:
+                moves.push(...this.getBishopMoves(row, col, piece.color));
+                break;
+            case PIECE_TYPES.QUEEN:
+                moves.push(...this.getQueenMoves(row, col, piece.color));
+                break;
+            case PIECE_TYPES.KING:
+                // Para el rey, solo verificar movimientos básicos, sin enroque
+                moves.push(...this.getKingBasicMoves(row, col, piece.color));
+                break;
+        }
+
+        return moves;
+    }
+
+    /**
+     * Obtiene los movimientos de ataque de un peón (solo capturas)
+     */
+    getPawnAttacks(row, col, color) {
+        const moves = [];
+        const direction = color === PIECE_COLORS.WHITE ? -1 : 1;
+        const newRow = row + direction;
+
+        // Solo capturas diagonales
+        for (const dc of [-1, 1]) {
+            const newCol = col + dc;
+            if (this.isValidPosition(newRow, newCol)) {
+                const targetPiece = this.getPiece(newRow, newCol);
+                if (targetPiece && targetPiece.color !== color) {
+                    moves.push({ row: newRow, col: newCol });
+                }
+            }
+        }
+
+        return moves;
+    }
+
+    /**
+     * Obtiene los movimientos básicos del rey (sin enroque)
+     */
+    getKingBasicMoves(row, col, color) {
+        const moves = [];
+        const offsets = [
+            { dr: -1, dc: -1 }, { dr: -1, dc: 0 }, { dr: -1, dc: 1 },
+            { dr: 0, dc: -1 }, { dr: 0, dc: 1 },
+            { dr: 1, dc: -1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }
+        ];
+
+        for (const offset of offsets) {
+            const newRow = row + offset.dr;
+            const newCol = col + offset.dc;
+            if (this.isValidPosition(newRow, newCol)) {
+                const targetPiece = this.getPiece(newRow, newCol);
+                if (!targetPiece || targetPiece.color !== color) {
+                    moves.push({ row: newRow, col: newCol });
+                }
+            }
+        }
+
+        return moves;
     }
 
     /**
