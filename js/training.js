@@ -516,12 +516,16 @@ class TrainingManager {
         const state = agent === this.whiteAgent ? whiteState : blackState;
         const nextState = agent === this.whiteAgent ? blackState : whiteState;
 
-        const nextMoves = tempBoard.getAllValidMoves(agent === this.whiteAgent ? PIECE_COLORS.BLACK : PIECE_COLORS.WHITE);
+        // CORREGIDO: Usar el color del agente para obtener nextMoves
+        const nextMoves = tempBoard.getAllValidMoves(agent.color);
+        
+        // CORREGIDO: Usar la recompensa correcta según el agente
+        const reward = agent === this.whiteAgent ? whiteReward : blackReward;
         
         agent.updateQ(
             state,
             move,
-            whiteReward,
+            reward,
             nextState,
             nextMoves,
             this.learningRate,
