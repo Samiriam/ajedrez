@@ -348,6 +348,13 @@ class ChessEngine {
             parameters: this.trainingManager.getParameters()
         };
     }
+
+    /**
+     * Obtiene los parámetros de entrenamiento
+     */
+    getParameters() {
+        return this.trainingManager.getParameters();
+    }
 }
 
 // Instancia global del motor
