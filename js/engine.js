@@ -13,10 +13,12 @@ class ChessEngine {
         this.ctx = this.canvas.getContext('2d');
 
         // Componentes del juego
-        this.board = new ChessBoard();
         this.whiteAgent = new ChessAgent(PIECE_COLORS.WHITE, 'chess_qtable_white');
         this.blackAgent = new ChessAgent(PIECE_COLORS.BLACK, 'chess_qtable_black');
         this.trainingManager = new TrainingManager(this.whiteAgent, this.blackAgent);
+
+        // Usar el mismo tablero que TrainingManager para renderizado
+        this.board = this.trainingManager.board;
 
         // Estado del juego
         this.isRunning = false;
