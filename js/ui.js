@@ -351,16 +351,17 @@ class UIManager {
      * Configura el listener para eventos de respaldo de Dropbox
      */
     setupDropboxBackupListener() {
+        const self = this;
         window.addEventListener('dropboxBackupComplete', (event) => {
             const { timestamp, path } = event.detail;
-            this.updateLastBackupDisplay(timestamp);
+            self.updateLastBackupDisplay(timestamp);
             // Mostrar notificación breve de respaldo completado
-            this.showNotification(`☁️ Respaldo guardado en Dropbox: ${timestamp}`, 'info');
+            self.showNotification(`☁️ Respaldo guardado en Dropbox: ${timestamp}`, 'info');
         });
         
         window.addEventListener('dropboxBackupError', (event) => {
             const { error } = event.detail;
-            this.showNotification(`❌ Error al guardar en Dropbox: ${error}`, 'error');
+            self.showNotification(`❌ Error al guardar en Dropbox: ${error}`, 'error');
         });
     }
 
