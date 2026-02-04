@@ -228,9 +228,33 @@ class UIManager {
         const token = prompt('⚠️ ADVERTENCIA: Necesitas configurar Dropbox primero\n\n\nPara usar Dropbox, sigue estos pasos:\n\n1. Ve a DROPBOX_SETUP.md (instrucciones disponibles abajo)\n2. O haz clic en el enlace directo: https://www.dropbox.com/developers\n3. Crea una app y genera un access token\n4. Vuelve aquí y pega el token\n\nIngresa tu Access Token de Dropbox:', localStorage.getItem('dropbox_access_token') || '');
         
         if (token !== null && token !== '') {
+            this.showLoadingProgress('Cargando conocimiento desde Dropbox...');
             this.chessEngine.whiteAgent.qTable.setDropboxToken(token);
             this.chessEngine.blackAgent.qTable.setDropboxToken(token);
             this.showNotification('✅ Dropbox configurado correctamente', 'success');
+            this.hideLoadingProgress();
+        }
+    }
+
+    /**
+     * Muestra la barra de progreso de carga
+     */
+    showLoadingProgress(text = 'Cargando...') {
+        const loadingProgress = document.getElementById('loadingProgress');
+        const loadingText = document.getElementById('loadingText');
+        if (loadingProgress && loadingText) {
+            loadingText.textContent = text;
+            loadingProgress.style.display = 'block';
+        }
+    }
+
+    /**
+     * Oculta la barra de progreso de carga
+     */
+    hideLoadingProgress() {
+        const loadingProgress = document.getElementById('loadingProgress');
+        if (loadingProgress) {
+            loadingProgress.style.display = 'none';
         }
     }
 
