@@ -10,79 +10,88 @@ class QTable {
     constructor(storageKey) {
         this.storageKey = storageKey;
         this.table = new Map(); // key: estado, value: array de valores Q por acción
-        this.dropboxAccessToken = localStorage.getItem('dropbox_access_token') || null;
-        this.dropboxPath = '/Apps/Ajedrez Q-Learning/' + storageKey + '.json';
-        this.useDropbox = this.dropboxAccessToken !== null;
+        this.dropboxAccessToken = localStorage.getItem('dropbox_access_token') || '';
+        this.dropboxPath = `/${storageKey}.json`;
+        this.useDropbox = this.dropboxAccessToken.trim() !== '';
+        this.saveInProgress = false;
+        this.pendingSave = false;
+        this.latestSerializedData = null;
+        this.lastDropboxSaveAt = 0;
+        this.dropboxSaveIntervalMs = 120000; // Evita subir archivos enormes en cada partida
+        this.lastDropboxErrorAt = 0;
+        this.dropboxErrorCooldownMs = 15000;
         this.loadFromStorage();
+    }
+
+    /**
+     * Emite errores de Dropbox con cooldown para no saturar la UI
+     */
+    emitDropboxError(errorMessage) {
+        const now = Date.now();
+        if (now - this.lastDropboxErrorAt < this.dropboxErrorCooldownMs) {
+            return;
+        }
+
+        this.lastDropboxErrorAt = now;
+        window.dispatchEvent(new CustomEvent('dropboxBackupError', {
+            detail: { error: errorMessage }
+        }));
     }
 
     /**
      * Guarda la tabla Q en Dropbox
      */
-    async saveToDropbox() {
+    async saveToDropbox(serializedData) {
         try {
             console.log('💾 Guardando en Dropbox...');
             console.log('📁 Path:', this.dropboxPath);
             console.log('📊 Tamaño de la tabla:', this.size(), 'estados,', this.totalEntries(), 'entradas');
-            
-            const data = {};
-            for (const [key, value] of this.table.entries()) {
-                data[key] = Array.from(value.entries());
-            }
-            
-            const dataSize = JSON.stringify(data).length;
+
+            const dataSize = serializedData.length;
             console.log('📦 Tamaño de datos:', dataSize, 'bytes');
-            
-            // Usar proxy CORS para evitar bloqueo del navegador
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/' + 'https://api.dropboxapi.com/2/files/upload';
-            
-            const response = await fetch(proxyUrl, {
+
+            // Endpoint oficial de Dropbox para contenido
+            const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                    'Content-Type': 'application/octet-stream',
+                    'Dropbox-API-Arg': JSON.stringify({
+                        path: this.dropboxPath,
+                        mode: 'overwrite',
+                        autorename: false,
+                        mute: true
+                    })
                 },
-                body: JSON.stringify({
-                    url: 'https://api.dropboxapi.com/2/files/upload',
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.dropboxAccessToken}`,
-                        'Content-Type': 'application/octet-stream',
-                        'Dropbox-API-Arg': JSON.stringify({
-                            path: this.dropboxPath,
-                            mode: 'overwrite',
-                            autorename: true,
-                            mute: false
-                        })
-                    },
-                    body: JSON.stringify(data)
-                })
+                body: serializedData
             });
-            
+
             console.log('📡 Response status:', response.status, response.statusText);
-            
+
             if (response.ok) {
                 console.log('✅ Guardado exitoso en Dropbox:', this.dropboxPath);
                 const timestamp = new Date().toLocaleString();
                 localStorage.setItem('lastDropboxBackup', timestamp);
                 // Emitir evento para que la UI se actualice
                 window.dispatchEvent(new CustomEvent('dropboxBackupComplete', {
-                    detail: { timestamp, path: this.dropboxPath }
+                        detail: { timestamp, path: this.dropboxPath }
                 }));
+                return true;
             } else {
                 const error = await response.text();
                 console.error('❌ Error al guardar en Dropbox:', response.status, error);
-                // Emitir evento de error
-                window.dispatchEvent(new CustomEvent('dropboxBackupError', {
-                    detail: { error: `HTTP ${response.status}: ${error}` }
-                }));
+                if (response.status === 401 || response.status === 403) {
+                    this.useDropbox = false;
+                    this.emitDropboxError(`Dropbox deshabilitado por autenticación/permisos. ${response.status}: ${error}`);
+                    return false;
+                }
+                this.emitDropboxError(`HTTP ${response.status}: ${error}`);
+                return false;
             }
         } catch (e) {
             console.error('❌ Excepción al guardar en Dropbox:', e);
-            // Emitir evento de error
-            window.dispatchEvent(new CustomEvent('dropboxBackupError', {
-                detail: { error: `${e.name}: ${e.message}` }
-            }));
+            this.emitDropboxError(`${e.name}: ${e.message}`);
+            return false;
         }
     }
 
@@ -93,24 +102,14 @@ class QTable {
         try {
             console.log('🔍 Verificando conexión con Dropbox...');
             console.log('🔑 Token:', this.dropboxAccessToken ? this.dropboxAccessToken.substring(0, 10) + '...' : 'No token');
-            
-            // Usar proxy CORS para evitar bloqueo del navegador
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/' + 'https://api.dropboxapi.com/2/users/get_current_account';
-            
-            const response = await fetch(proxyUrl, {
+
+            const response = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    url: 'https://api.dropboxapi.com/2/users/get_current_account',
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.dropboxAccessToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
+                body: 'null'
             });
             
             console.log('📡 Response status:', response.status, response.statusText);
@@ -135,29 +134,17 @@ class QTable {
      */
     async loadFromDropbox() {
         try {
-            // Usar proxy CORS para evitar bloqueo del navegador
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/' + 'https://api.dropboxapi.com/2/files/download';
-            
-            const response = await fetch(proxyUrl, {
+            const response = await fetch('https://content.dropboxapi.com/2/files/download', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                    'Dropbox-API-Arg': JSON.stringify({ path: this.dropboxPath })
                 },
-                body: JSON.stringify({
-                    url: 'https://api.dropboxapi.com/2/files/download',
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this.dropboxAccessToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ path: this.dropboxPath })
-                })
+                body: null
             });
-            
+
             if (response.ok) {
-                const blob = await response.blob();
-                const text = await blob.text();
+                const text = await response.text();
                 const parsed = JSON.parse(text);
                 
                 for (const [key, value] of Object.entries(parsed)) {
@@ -167,11 +154,17 @@ class QTable {
                 console.log(`Cargados ${this.size()} estados desde Dropbox`);
                 return true;
             } else {
-                console.error('Error al cargar desde Dropbox:', await response.text());
+                const error = await response.text();
+                // 409: archivo no encontrado en Dropbox, se considera estado inicial vacío
+                if (response.status !== 409) {
+                    console.error('Error al cargar desde Dropbox:', response.status, error);
+                    this.emitDropboxError(`Carga Dropbox HTTP ${response.status}: ${error}`);
+                }
                 return false;
             }
         } catch (e) {
             console.error('Error al cargar desde Dropbox:', e);
+            this.emitDropboxError(`Carga Dropbox ${e.name}: ${e.message}`);
             return false;
         }
     }
@@ -281,14 +274,41 @@ class QTable {
             for (const [key, value] of this.table.entries()) {
                 data[key] = Array.from(value.entries());
             }
-            
-            if (this.useDropbox) {
-                await this.saveToDropbox();
-            } else {
-                localStorage.setItem(this.storageKey, JSON.stringify(data));
+
+            const serializedData = JSON.stringify(data);
+
+            if (!this.useDropbox) {
+                localStorage.setItem(this.storageKey, serializedData);
+                return;
+            }
+
+            this.latestSerializedData = serializedData;
+
+            // Si ya hay un guardado en curso, encolar uno adicional
+            if (this.saveInProgress) {
+                this.pendingSave = true;
+                return;
+            }
+
+            const now = Date.now();
+            if (now - this.lastDropboxSaveAt < this.dropboxSaveIntervalMs) {
+                return;
+            }
+
+            this.saveInProgress = true;
+            const saved = await this.saveToDropbox(this.latestSerializedData);
+            if (saved) {
+                this.lastDropboxSaveAt = Date.now();
+            }
+            this.saveInProgress = false;
+
+            if (this.pendingSave) {
+                this.pendingSave = false;
+                setTimeout(() => this.saveToStorage(), 250);
             }
         } catch (e) {
             console.warn('No se pudo guardar:', e);
+            this.saveInProgress = false;
         }
     }
 
@@ -390,9 +410,10 @@ class QTable {
      * Configura el access token de Dropbox
      */
     setDropboxToken(token) {
-        this.dropboxAccessToken = token;
-        this.useDropbox = token !== null && token !== '';
-        localStorage.setItem('dropbox_access_token', token || '');
+        const normalizedToken = (token || '').trim();
+        this.dropboxAccessToken = normalizedToken;
+        this.useDropbox = normalizedToken !== '';
+        localStorage.setItem('dropbox_access_token', normalizedToken);
         
         // Si se activa Dropbox, recargar desde Dropbox
         if (this.useDropbox) {

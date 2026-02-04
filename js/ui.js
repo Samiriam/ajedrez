@@ -246,6 +246,7 @@ class UIManager {
                     this.showLoadingProgress('Cargando conocimiento desde Dropbox...');
                     this.chessEngine.whiteAgent.qTable.setDropboxToken(token);
                     this.chessEngine.blackAgent.qTable.setDropboxToken(token);
+                    this.updateStorageModeDisplay();
                     this.showNotification(`✅ Dropbox configurado correctamente\n👤 Cuenta: ${result.accountInfo.name.display_name || result.accountInfo.email}`, 'success');
                     this.hideLoadingProgress();
                 } else {
@@ -281,6 +282,43 @@ class UIManager {
         if (loadingProgress) {
             loadingProgress.style.display = 'none';
         }
+    }
+
+    /**
+     * Muestra una notificación temporal
+     */
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+
+        const colors = {
+            success: '#2ecc71',
+            error: '#e74c3c',
+            warning: '#f39c12',
+            info: '#3498db'
+        };
+
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 420px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: ${colors[type] || colors.info};
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            z-index: 9999;
+            white-space: pre-line;
+            animation: slideIn 0.25s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.25s ease-out';
+            setTimeout(() => notification.remove(), 250);
+        }, 3200);
     }
 
     /**
@@ -330,38 +368,21 @@ class UIManager {
     }
 
     /**
-     * Actualiza el indicador de modo de almacenamiento
-     */
-    updateStorageModeDisplay() {
-        const storageModeTextEl = document.getElementById('storageModeText');
-        if (storageModeTextEl) {
-            const useDropbox = this.chessEngine.whiteAgent.qTable.useDropbox || this.chessEngine.blackAgent.qTable.useDropbox;
-            
-            if (useDropbox) {
-                storageModeTextEl.textContent = 'Dropbox ☁️';
-                storageModeTextEl.style.color = '#2ecc71';
-            } else {
-                storageModeTextEl.textContent = 'localStorage 💾';
-                storageModeTextEl.style.color = '#3498db';
-            }
-        }
-    }
-
-    /**
      * Configura el listener para eventos de respaldo de Dropbox
      */
     setupDropboxBackupListener() {
-        const self = this;
+        const uiManager = this;
         window.addEventListener('dropboxBackupComplete', (event) => {
             const { timestamp, path } = event.detail;
-            self.updateLastBackupDisplay(timestamp);
+            uiManager.updateLastBackupDisplay(timestamp);
             // Mostrar notificación breve de respaldo completado
-            self.showNotification(`☁️ Respaldo guardado en Dropbox: ${timestamp}`, 'info');
+            uiManager.showNotification(`☁️ Respaldo guardado en Dropbox: ${timestamp}`, 'info');
         });
         
         window.addEventListener('dropboxBackupError', (event) => {
             const { error } = event.detail;
-            self.showNotification(`❌ Error al guardar en Dropbox: ${error}`, 'error');
+            uiManager.showNotification(`❌ Error al guardar en Dropbox: ${error}`, 'error');
+            uiManager.updateStorageModeDisplay();
         });
     }
 
