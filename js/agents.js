@@ -21,10 +21,17 @@ class QTable {
      */
     async saveToDropbox() {
         try {
+            console.log('💾 Guardando en Dropbox...');
+            console.log('📁 Path:', this.dropboxPath);
+            console.log('📊 Tamaño de la tabla:', this.size(), 'estados,', this.totalEntries(), 'entradas');
+            
             const data = {};
             for (const [key, value] of this.table.entries()) {
                 data[key] = Array.from(value.entries());
             }
+            
+            const dataSize = JSON.stringify(data).length;
+            console.log('📦 Tamaño de datos:', dataSize, 'bytes');
             
             const response = await fetch('https://api.dropboxapi.com/2/files/upload', {
                 method: 'POST',
@@ -41,8 +48,10 @@ class QTable {
                 body: JSON.stringify(data)
             });
             
+            console.log('📡 Response status:', response.status, response.statusText);
+            
             if (response.ok) {
-                console.log('Guardado en Dropbox:', this.dropboxPath);
+                console.log('✅ Guardado exitoso en Dropbox:', this.dropboxPath);
                 const timestamp = new Date().toLocaleString();
                 localStorage.setItem('lastDropboxBackup', timestamp);
                 // Emitir evento para que la UI se actualice
@@ -50,17 +59,18 @@ class QTable {
                     detail: { timestamp, path: this.dropboxPath }
                 }));
             } else {
-                console.error('Error al guardar en Dropbox:', await response.text());
+                const error = await response.text();
+                console.error('❌ Error al guardar en Dropbox:', response.status, error);
                 // Emitir evento de error
                 window.dispatchEvent(new CustomEvent('dropboxBackupError', {
-                    detail: { error: await response.text() }
+                    detail: { error: `HTTP ${response.status}: ${error}` }
                 }));
             }
         } catch (e) {
-            console.error('Error al guardar en Dropbox:', e);
+            console.error('❌ Excepción al guardar en Dropbox:', e);
             // Emitir evento de error
             window.dispatchEvent(new CustomEvent('dropboxBackupError', {
-                detail: { error: e.message }
+                detail: { error: `${e.name}: ${e.message}` }
             }));
         }
     }
@@ -70,6 +80,9 @@ class QTable {
      */
     async verifyDropboxConnection() {
         try {
+            console.log('🔍 Verificando conexión con Dropbox...');
+            console.log('🔑 Token:', this.dropboxAccessToken ? this.dropboxAccessToken.substring(0, 10) + '...' : 'No token');
+            
             const response = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
                 method: 'POST',
                 headers: {
@@ -78,15 +91,20 @@ class QTable {
                 }
             });
             
+            console.log('📡 Response status:', response.status, response.statusText);
+            
             if (response.ok) {
                 const accountInfo = await response.json();
+                console.log('✅ Conexión exitosa:', accountInfo);
                 return { success: true, accountInfo };
             } else {
                 const error = await response.text();
-                return { success: false, error };
+                console.error('❌ Error de conexión:', response.status, error);
+                return { success: false, error: `HTTP ${response.status}: ${error}` };
             }
         } catch (e) {
-            return { success: false, error: e.message };
+            console.error('❌ Excepción al verificar conexión:', e);
+            return { success: false, error: `${e.name}: ${e.message}` };
         }
     }
 
