@@ -14,6 +14,7 @@ class UIManager {
         this.updateParameterDisplays();
         this.updateModeButtons();
         this.updateObservationStatus(chessEngine.gameMode);
+        this.updateStorageModeDisplay();
     }
 
     /**
@@ -275,6 +276,42 @@ class UIManager {
             } else {
                 observationStatusEl.textContent = '🔄 ENTRENANDO';
                 observationStatusEl.style.color = '#2ecc71';
+            }
+        }
+    }
+
+    /**
+     * Actualiza el indicador de modo de almacenamiento
+     */
+    updateStorageModeDisplay() {
+        const storageModeTextEl = document.getElementById('storageModeText');
+        if (storageModeTextEl) {
+            const useDropbox = this.chessEngine.whiteAgent.qTable.useDropbox || this.chessEngine.blackAgent.qTable.useDropbox;
+            
+            if (useDropbox) {
+                storageModeTextEl.textContent = 'Dropbox ☁️';
+                storageModeTextEl.style.color = '#2ecc71';
+            } else {
+                storageModeTextEl.textContent = 'localStorage 💾';
+                storageModeTextEl.style.color = '#3498db';
+            }
+        }
+    }
+
+    /**
+     * Actualiza el indicador de modo de almacenamiento
+     */
+    updateStorageModeDisplay() {
+        const storageModeTextEl = document.getElementById('storageModeText');
+        if (storageModeTextEl) {
+            const useDropbox = this.chessEngine.whiteAgent.qTable.useDropbox || this.chessEngine.blackAgent.qTable.useDropbox;
+            
+            if (useDropbox) {
+                storageModeTextEl.textContent = 'Dropbox ☁️';
+                storageModeTextEl.style.color = '#2ecc71';
+            } else {
+                storageModeTextEl.textContent = 'localStorage 💾';
+                storageModeTextEl.style.color = '#3498db';
             }
         }
     }
