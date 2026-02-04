@@ -51,9 +51,42 @@ class QTable {
                 }));
             } else {
                 console.error('Error al guardar en Dropbox:', await response.text());
+                // Emitir evento de error
+                window.dispatchEvent(new CustomEvent('dropboxBackupError', {
+                    detail: { error: await response.text() }
+                }));
             }
         } catch (e) {
             console.error('Error al guardar en Dropbox:', e);
+            // Emitir evento de error
+            window.dispatchEvent(new CustomEvent('dropboxBackupError', {
+                detail: { error: e.message }
+            }));
+        }
+    }
+
+    /**
+     * Verifica la conexión con Dropbox
+     */
+    async verifyDropboxConnection() {
+        try {
+            const response = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const accountInfo = await response.json();
+                return { success: true, accountInfo };
+            } else {
+                const error = await response.text();
+                return { success: false, error };
+            }
+        } catch (e) {
+            return { success: false, error: e.message };
         }
     }
 

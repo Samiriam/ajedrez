@@ -229,11 +229,27 @@ class UIManager {
         const token = prompt('⚠️ ADVERTENCIA: Necesitas configurar Dropbox primero\n\n\nPara usar Dropbox, sigue estos pasos:\n\n1. Ve a DROPBOX_SETUP.md (instrucciones disponibles abajo)\n2. O haz clic en el enlace directo: https://www.dropbox.com/developers\n3. Crea una app y genera un access token\n4. Vuelve aquí y pega el token\n\nIngresa tu Access Token de Dropbox:', localStorage.getItem('dropbox_access_token') || '');
         
         if (token !== null && token !== '') {
-            this.showLoadingProgress('Cargando conocimiento desde Dropbox...');
-            this.chessEngine.whiteAgent.qTable.setDropboxToken(token);
-            this.chessEngine.blackAgent.qTable.setDropboxToken(token);
-            this.showNotification('✅ Dropbox configurado correctamente', 'success');
-            this.hideLoadingProgress();
+            this.showLoadingProgress('Verificando conexión con Dropbox...');
+            
+            // Verificar conexión con Dropbox
+            this.chessEngine.whiteAgent.qTable.dropboxAccessToken = token;
+            this.chessEngine.whiteAgent.qTable.verifyDropboxConnection().then(result => {
+                if (result.success) {
+                    // Conexión exitosa, configurar tokens
+                    this.showLoadingProgress('Cargando conocimiento desde Dropbox...');
+                    this.chessEngine.whiteAgent.qTable.setDropboxToken(token);
+                    this.chessEngine.blackAgent.qTable.setDropboxToken(token);
+                    this.showNotification(`✅ Dropbox configurado correctamente\n👤 Cuenta: ${result.accountInfo.name.display_name || result.accountInfo.email}`, 'success');
+                    this.hideLoadingProgress();
+                } else {
+                    // Error de conexión
+                    this.showNotification(`❌ Error de conexión con Dropbox: ${result.error}`, 'error');
+                    this.hideLoadingProgress();
+                }
+            }).catch(error => {
+                this.showNotification(`❌ Error al verificar conexión: ${error.message}`, 'error');
+                this.hideLoadingProgress();
+            });
         }
     }
 
@@ -332,6 +348,11 @@ class UIManager {
             this.updateLastBackupDisplay(timestamp);
             // Mostrar notificación breve de respaldo completado
             this.showNotification(`☁️ Respaldo guardado en Dropbox: ${timestamp}`, 'info');
+        });
+        
+        window.addEventListener('dropboxBackupError', (event) => {
+            const { error } = event.detail;
+            this.showNotification(`❌ Error al guardar en Dropbox: ${error}`, 'error');
         });
     }
 
