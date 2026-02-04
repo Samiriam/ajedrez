@@ -164,6 +164,11 @@ class QTable {
                 const error = await response.text();
                 // 409: archivo no encontrado en Dropbox, se considera estado inicial vacío
                 if (response.status !== 409) {
+                    if (response.status === 401 || response.status === 403) {
+                        this.useDropbox = false;
+                        this.emitDropboxError(`Token de Dropbox inválido o sin permisos. Se usa localStorage. (${response.status})`);
+                        return false;
+                    }
                     console.error('Error al cargar desde Dropbox:', response.status, error);
                     this.emitDropboxError(`Carga Dropbox HTTP ${response.status}: ${error}`);
                 }
