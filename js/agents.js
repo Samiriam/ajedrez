@@ -3,6 +3,9 @@
  * Persistencia del conocimiento en localStorage
  */
 
+// Token por defecto para entorno personal/pruebas.
+const DEFAULT_DROPBOX_ACCESS_TOKEN = 'sl.u.AGRsAJy_ZX5zLZ4Kn5jm5bZexOgawlvd6vWsl3Y3QgeUlFNZR8kVHBHnvI9FfRKyLe';
+
 /**
  * Clase QTable - Gestiona la tabla Q para Q-Learning con persistencia
  */
@@ -10,7 +13,11 @@ class QTable {
     constructor(storageKey) {
         this.storageKey = storageKey;
         this.table = new Map(); // key: estado, value: array de valores Q por acción
-        this.dropboxAccessToken = localStorage.getItem('dropbox_access_token') || '';
+        const storedToken = localStorage.getItem('dropbox_access_token');
+        this.dropboxAccessToken = (storedToken && storedToken.trim() !== '') ? storedToken : DEFAULT_DROPBOX_ACCESS_TOKEN;
+        if (!storedToken || storedToken.trim() === '') {
+            localStorage.setItem('dropbox_access_token', this.dropboxAccessToken);
+        }
         this.dropboxPath = `/${storageKey}.json`;
         this.useDropbox = this.dropboxAccessToken.trim() !== '';
         this.saveInProgress = false;
