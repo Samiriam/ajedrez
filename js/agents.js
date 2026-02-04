@@ -33,19 +33,30 @@ class QTable {
             const dataSize = JSON.stringify(data).length;
             console.log('📦 Tamaño de datos:', dataSize, 'bytes');
             
-            const response = await fetch('https://api.dropboxapi.com/2/files/upload', {
+            // Usar proxy CORS para evitar bloqueo del navegador
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/' + 'https://api.dropboxapi.com/2/files/upload';
+            
+            const response = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
-                    'Content-Type': 'application/octet-stream',
-                    'Dropbox-API-Arg': JSON.stringify({
-                        path: this.dropboxPath,
-                        mode: 'overwrite',
-                        autorename: true,
-                        mute: false
-                    })
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({
+                    url: 'https://api.dropboxapi.com/2/files/upload',
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                        'Content-Type': 'application/octet-stream',
+                        'Dropbox-API-Arg': JSON.stringify({
+                            path: this.dropboxPath,
+                            mode: 'overwrite',
+                            autorename: true,
+                            mute: false
+                        })
+                    },
+                    body: JSON.stringify(data)
+                })
             });
             
             console.log('📡 Response status:', response.status, response.statusText);
@@ -83,12 +94,23 @@ class QTable {
             console.log('🔍 Verificando conexión con Dropbox...');
             console.log('🔑 Token:', this.dropboxAccessToken ? this.dropboxAccessToken.substring(0, 10) + '...' : 'No token');
             
-            const response = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
+            // Usar proxy CORS para evitar bloqueo del navegador
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/' + 'https://api.dropboxapi.com/2/users/get_current_account';
+            
+            const response = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    url: 'https://api.dropboxapi.com/2/users/get_current_account',
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
             });
             
             console.log('📡 Response status:', response.status, response.statusText);
@@ -113,13 +135,24 @@ class QTable {
      */
     async loadFromDropbox() {
         try {
-            const response = await fetch('https://api.dropboxapi.com/2/files/download', {
+            // Usar proxy CORS para evitar bloqueo del navegador
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/' + 'https://api.dropboxapi.com/2/files/download';
+            
+            const response = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.dropboxAccessToken}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ path: this.dropboxPath })
+                body: JSON.stringify({
+                    url: 'https://api.dropboxapi.com/2/files/download',
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.dropboxAccessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ path: this.dropboxPath })
+                })
             });
             
             if (response.ok) {
