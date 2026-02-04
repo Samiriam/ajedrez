@@ -231,9 +231,16 @@ class UIManager {
         if (token !== null && token !== '') {
             this.showLoadingProgress('Verificando conexión con Dropbox...');
             
+            // Timeout para ocultar la barra si tarda demasiado
+            const timeoutId = setTimeout(() => {
+                this.hideLoadingProgress();
+                this.showNotification('⏱️ La verificación está tardando demasiado. Intenta nuevamente.', 'warning');
+            }, 30000); // 30 segundos
+            
             // Verificar conexión con Dropbox
             this.chessEngine.whiteAgent.qTable.dropboxAccessToken = token;
             this.chessEngine.whiteAgent.qTable.verifyDropboxConnection().then(result => {
+                clearTimeout(timeoutId);
                 if (result.success) {
                     // Conexión exitosa, configurar tokens
                     this.showLoadingProgress('Cargando conocimiento desde Dropbox...');
@@ -247,6 +254,7 @@ class UIManager {
                     this.hideLoadingProgress();
                 }
             }).catch(error => {
+                clearTimeout(timeoutId);
                 this.showNotification(`❌ Error al verificar conexión: ${error.message}`, 'error');
                 this.hideLoadingProgress();
             });
