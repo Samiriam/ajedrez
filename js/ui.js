@@ -15,6 +15,7 @@ class UIManager {
         this.updateModeButtons();
         this.updateObservationStatus(chessEngine.gameMode);
         this.updateStorageModeDisplay();
+        this.setupDropboxBackupListener();
     }
 
     /**
@@ -323,19 +324,54 @@ class UIManager {
     }
 
     /**
+     * Configura el listener para eventos de respaldo de Dropbox
+     */
+    setupDropboxBackupListener() {
+        window.addEventListener('dropboxBackupComplete', (event) => {
+            const { timestamp, path } = event.detail;
+            this.updateLastBackupDisplay(timestamp);
+            // Mostrar notificación breve de respaldo completado
+            this.showNotification(`☁️ Respaldo guardado en Dropbox: ${timestamp}`, 'info');
+        });
+    }
+
+    /**
+     * Actualiza el indicador del último respaldo
+     */
+    updateLastBackupDisplay(timestamp) {
+        const lastBackupEl = document.getElementById('lastBackup');
+        if (lastBackupEl) {
+            lastBackupEl.textContent = timestamp;
+        }
+    }
+
+    /**
      * Actualiza el indicador de modo de almacenamiento
      */
     updateStorageModeDisplay() {
         const storageModeTextEl = document.getElementById('storageModeText');
+        const lastBackupContainer = document.getElementById('lastBackupContainer');
         if (storageModeTextEl) {
             const useDropbox = this.chessEngine.whiteAgent.qTable.useDropbox || this.chessEngine.blackAgent.qTable.useDropbox;
             
             if (useDropbox) {
                 storageModeTextEl.textContent = 'Dropbox ☁️';
                 storageModeTextEl.style.color = '#2ecc71';
+                // Mostrar indicador de último respaldo
+                if (lastBackupContainer) {
+                    lastBackupContainer.style.display = 'block';
+                    const lastBackup = localStorage.getItem('lastDropboxBackup');
+                    if (lastBackup) {
+                        this.updateLastBackupDisplay(lastBackup);
+                    }
+                }
             } else {
                 storageModeTextEl.textContent = 'localStorage 💾';
                 storageModeTextEl.style.color = '#3498db';
+                // Ocultar indicador de último respaldo
+                if (lastBackupContainer) {
+                    lastBackupContainer.style.display = 'none';
+                }
             }
         }
     }

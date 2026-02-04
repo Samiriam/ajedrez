@@ -43,6 +43,12 @@ class QTable {
             
             if (response.ok) {
                 console.log('Guardado en Dropbox:', this.dropboxPath);
+                const timestamp = new Date().toLocaleString();
+                localStorage.setItem('lastDropboxBackup', timestamp);
+                // Emitir evento para que la UI se actualice
+                window.dispatchEvent(new CustomEvent('dropboxBackupComplete', {
+                    detail: { timestamp, path: this.dropboxPath }
+                }));
             } else {
                 console.error('Error al guardar en Dropbox:', await response.text());
             }
